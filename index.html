@@ -479,10 +479,16 @@
                 errorEl.classList.remove('hidden');
                 return;
             }
+            // Guardar email para autocompletar la próxima vez
+            try { localStorage.setItem('ultimoEmail', email); } catch(e) {}
             // El listener de onAuthStateChange se encarga del resto
         }
 
         async function handleLogout() {
+            // Preservar email para autocompletar la próxima vez
+            let emailPreservado = null;
+            try { emailPreservado = localStorage.getItem('ultimoEmail'); } catch(e) {}
+
             // Reset "duro": aunque el SDK esté colgado, garantizamos que la sesión se limpie.
             // Cada await con race timeout de 2s para no quedarnos esperando eternamente.
             try {
@@ -503,6 +509,10 @@
             // Limpieza forzada del storage local por si el SDK dejó estado corrupto
             try { localStorage.clear(); } catch(e) {}
             try { sessionStorage.clear(); } catch(e) {}
+            // Reponer email para próxima vez
+            if(emailPreservado) {
+                try { localStorage.setItem('ultimoEmail', emailPreservado); } catch(e) {}
+            }
             location.reload();
         }
 
@@ -1372,6 +1382,18 @@
             document.getElementById('main-header').classList.add('hidden');
             document.getElementById('main-header').classList.remove('flex');
             document.getElementById('vista-principal').classList.add('hidden');
+
+            // Autocompletar email del último ingreso, si existe
+            const emailInput = document.getElementById('login-email');
+            const passwordInput = document.getElementById('login-password');
+            const ultimoEmail = (() => { try { return localStorage.getItem('ultimoEmail'); } catch(e) { return null; } })();
+            if(ultimoEmail && emailInput) {
+                emailInput.value = ultimoEmail;
+                // Foco directo en la contraseña
+                setTimeout(() => passwordInput && passwordInput.focus(), 100);
+            } else {
+                setTimeout(() => emailInput && emailInput.focus(), 100);
+            }
         }
 
         // Escuchar cambios de sesión
