@@ -473,11 +473,26 @@
         }
 
         async function handleLogout() {
-            if(realtimeChannel) {
-                await sbClient.removeChannel(realtimeChannel);
-                realtimeChannel = null;
-            }
-            await sbClient.auth.signOut();
+            // Reset "duro": aunque el SDK esté colgado, garantizamos que la sesión se limpie.
+            // Cada await con race timeout de 2s para no quedarnos esperando eternamente.
+            try {
+                if(realtimeChannel) {
+                    await Promise.race([
+                        sbClient.removeChannel(realtimeChannel),
+                        new Promise(r => setTimeout(r, 2000))
+                    ]);
+                    realtimeChannel = null;
+                }
+            } catch(e) { /* ignoramos */ }
+            try {
+                await Promise.race([
+                    sbClient.auth.signOut(),
+                    new Promise(r => setTimeout(r, 2000))
+                ]);
+            } catch(e) { /* ignoramos */ }
+            // Limpieza forzada del storage local por si el SDK dejó estado corrupto
+            try { localStorage.clear(); } catch(e) {}
+            try { sessionStorage.clear(); } catch(e) {}
             location.reload();
         }
 
@@ -569,13 +584,28 @@
         // CARGA INICIAL DE DATOS
         // ====================================================================
         async function cargarTodoDesdeDB() {
-            const [ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes] = await Promise.all([
+            // Queries en paralelo con timeout de 12s. Si el cliente Supabase se cuelga
+            // (promesas que no resuelven), el timeout dispara el banner de reintentar.
+            const queriesPromise = Promise.all([
                 sbClient.from('ambitos').select('*').order('orden'),
                 sbClient.from('lineas').select('*').order('orden'),
                 sbClient.from('tareas').select('*'),
                 sbClient.from('eventos').select('*'),
                 sbClient.from('suntzu').select('*')
             ]);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('TIMEOUT')), 12000)
+            );
+
+            let ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes;
+            try {
+                [ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes] =
+                    await Promise.race([queriesPromise, timeoutPromise]);
+            } catch(e) {
+                console.error("Timeout cargando datos:", e);
+                mostrarBannerSesion("La app no puede conectarse con la base. Tocá 'Volver a entrar' para reiniciar.");
+                return false;
+            }
 
             if(ambitosRes.error || lineasRes.error || tareasRes.error || eventosRes.error || suntzuRes.error) {
                 console.error("Error cargando datos", { ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes });
@@ -1336,7 +1366,21 @@
                 return;
             }
 
-            const { data: { session } } = await sbClient.auth.getSession();
+            // getSession con timeout: si no responde en 5s, storage local corrupto → limpiar y forzar login
+            let session = null;
+            try {
+                const result = await Promise.race([
+                    sbClient.auth.getSession(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('SESSION_TIMEOUT')), 5000))
+                ]);
+                session = result && result.data ? result.data.session : null;
+            } catch(e) {
+                console.warn("getSession no respondió, limpiando storage:", e);
+                try { localStorage.clear(); } catch(_) {}
+                try { sessionStorage.clear(); } catch(_) {}
+                session = null;
+            }
+
             if(session) {
                 await mostrarAppLogueado(session);
             } else {
