@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Centro de Mando Estratégico</title>
+    <!-- PWA: manifest, íconos y colores para instalación como app -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="theme-color" content="#f59e0b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Mando">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><!-- Cliente Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -32,6 +40,26 @@
     </style>
 </head>
 <body class="min-h-screen flex flex-col font-sans antialiased pb-8">
+
+    <!-- ========================================== -->
+    <!-- BANNER DE SESIÓN EXPIRADA / ERROR CARGA    -->
+    <!-- ========================================== -->
+    <div id="session-banner" class="hidden fixed top-0 left-0 right-0 z-40 bg-rose-100 border-b-2 border-rose-300 px-4 py-3 shadow-md">
+        <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div class="flex items-start gap-2 flex-1">
+                <i class="fa-solid fa-triangle-exclamation text-rose-600 mt-0.5"></i>
+                <p id="session-banner-text" class="text-xs sm:text-sm text-rose-800 leading-snug">Tu sesión expiró. Ingresá de nuevo para continuar.</p>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+                <button onclick="reintentarCarga()" class="text-xs px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg">
+                    <i class="fa-solid fa-rotate-right mr-1"></i>Reintentar
+                </button>
+                <button onclick="handleLogout()" class="text-xs px-3 py-1.5 bg-white hover:bg-stone-100 text-rose-700 border border-rose-300 font-bold rounded-lg">
+                    Volver a entrar
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- ========================================== -->
     <!-- PANTALLA DE LOGIN                          -->
@@ -508,6 +536,36 @@
         }
 
         // ====================================================================
+        // MANEJO DE BANNER DE SESIÓN
+        // ====================================================================
+        function mostrarBannerSesion(mensaje) {
+            const banner = document.getElementById('session-banner');
+            const texto = document.getElementById('session-banner-text');
+            if(texto) texto.innerText = mensaje;
+            if(banner) banner.classList.remove('hidden');
+        }
+        function ocultarBannerSesion() {
+            const banner = document.getElementById('session-banner');
+            if(banner) banner.classList.add('hidden');
+        }
+        async function reintentarCarga() {
+            ocultarBannerSesion();
+            // Verificar que hay sesión antes de reintentar
+            const { data: { session } } = await sbClient.auth.getSession();
+            if(!session) {
+                mostrarBannerSesion("No hay sesión activa. Volvé a entrar.");
+                return;
+            }
+            const ok = await cargarTodoDesdeDB();
+            if(ok) {
+                renderAmbitos();
+                renderTareas();
+                renderEventos();
+                actualizarCalendarioGeneral();
+            }
+        }
+
+        // ====================================================================
         // CARGA INICIAL DE DATOS
         // ====================================================================
         async function cargarTodoDesdeDB() {
@@ -521,9 +579,18 @@
 
             if(ambitosRes.error || lineasRes.error || tareasRes.error || eventosRes.error || suntzuRes.error) {
                 console.error("Error cargando datos", { ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes });
-                alert("Error cargando datos. Revisá la consola.");
-                return;
+                // Detectar si es error de sesión/permiso vs otro tipo
+                const errores = [ambitosRes.error, lineasRes.error, tareasRes.error, eventosRes.error, suntzuRes.error].filter(Boolean);
+                const esErrorAuth = errores.some(e => e && (e.code === '42501' || e.code === 'PGRST301' || (e.message || '').includes('JWT')));
+                if(esErrorAuth) {
+                    mostrarBannerSesion("Tu sesión expiró o no tenés permisos. Volvé a entrar.");
+                } else {
+                    mostrarBannerSesion("Hubo un problema cargando los datos. Podés reintentar o volver a entrar.");
+                }
+                return false;
             }
+            ocultarBannerSesion();
+            return true;
 
             const lineasPorAmbito = {};
             (lineasRes.data || []).forEach(l => {
@@ -1232,12 +1299,30 @@
 
         // Escuchar cambios de sesión
         sbClient.auth.onAuthStateChange(async (event, session) => {
+            console.log("Auth event:", event);
             if(event === 'SIGNED_IN' && session) {
                 await mostrarAppLogueado(session);
             } else if(event === 'SIGNED_OUT') {
+                ocultarBannerSesion();
                 mostrarLogin();
+            } else if(event === 'TOKEN_REFRESHED' && session) {
+                // El SDK refrescó el token silenciosamente. Actualizamos el usuario
+                // por si cambió algo, y si estábamos con el banner mostrado, ocultamos.
+                currentUser = session.user;
+                ocultarBannerSesion();
+            } else if(event === 'USER_UPDATED' && session) {
+                currentUser = session.user;
             }
         });
+
+        // Registrar service worker para habilitar instalación como PWA
+        if('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('SW registrado:', reg.scope))
+                    .catch(err => console.log('SW error:', err));
+            });
+        }
 
         // Al cargar la página, chequear si ya hay sesión
         (async function init() {
