@@ -62,6 +62,16 @@
     </div>
 
     <!-- ========================================== -->
+    <!-- INDICADOR DE CARGA                          -->
+    <!-- ========================================== -->
+    <div id="loading-overlay" class="hidden fixed inset-0 bg-white/80 backdrop-blur-sm z-40 flex items-center justify-center">
+        <div class="flex flex-col items-center gap-3">
+            <div class="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+            <p class="text-sm text-stone-600 font-medium">Cargando...</p>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
     <!-- PANTALLA DE LOGIN                          -->
     <!-- ========================================== -->
     <div id="login-screen" class="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-amber-50 to-stone-100 z-50 p-4">
@@ -551,6 +561,36 @@
         }
 
         // ====================================================================
+        // LOADING OVERLAY
+        // ====================================================================
+        function mostrarLoading() {
+            const el = document.getElementById('loading-overlay');
+            if(el) el.classList.remove('hidden');
+        }
+        function ocultarLoading() {
+            const el = document.getElementById('loading-overlay');
+            if(el) el.classList.add('hidden');
+        }
+
+        // ====================================================================
+        // RESET TOTAL (accesible desde consola)
+        // Uso: en F12 → Console → escribir  resetTotal()  y Enter.
+        // Limpia todo (storage, service worker) y recarga.
+        // ====================================================================
+        window.resetTotal = async function() {
+            console.log("Reset total en curso...");
+            try {
+                if('serviceWorker' in navigator) {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    for(const reg of regs) await reg.unregister();
+                }
+            } catch(e) { console.warn(e); }
+            try { localStorage.clear(); } catch(e) {}
+            try { sessionStorage.clear(); } catch(e) {}
+            location.reload();
+        };
+
+        // ====================================================================
         // MANEJO DE BANNER DE SESIÓN
         // ====================================================================
         function mostrarBannerSesion(mensaje) {
@@ -584,7 +624,9 @@
         // CARGA INICIAL DE DATOS
         // ====================================================================
         async function cargarTodoDesdeDB() {
-            // Queries en paralelo con timeout de 12s. Si el cliente Supabase se cuelga
+            mostrarLoading();
+            console.log("Cargando datos desde Supabase...");
+            // Queries en paralelo con timeout de 10s. Si el cliente Supabase se cuelga
             // (promesas que no resuelven), el timeout dispara el banner de reintentar.
             const queriesPromise = Promise.all([
                 sbClient.from('ambitos').select('*').order('orden'),
@@ -594,7 +636,7 @@
                 sbClient.from('suntzu').select('*')
             ]);
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT')), 12000)
+                setTimeout(() => reject(new Error('TIMEOUT')), 10000)
             );
 
             let ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes;
@@ -603,12 +645,14 @@
                     await Promise.race([queriesPromise, timeoutPromise]);
             } catch(e) {
                 console.error("Timeout cargando datos:", e);
-                mostrarBannerSesion("La app no puede conectarse con la base. Tocá 'Volver a entrar' para reiniciar.");
+                ocultarLoading();
+                mostrarBannerSesion("La app no puede conectarse. Tocá 'Volver a entrar' para reiniciar.");
                 return false;
             }
 
             if(ambitosRes.error || lineasRes.error || tareasRes.error || eventosRes.error || suntzuRes.error) {
                 console.error("Error cargando datos", { ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes });
+                ocultarLoading();
                 // Detectar si es error de sesión/permiso vs otro tipo
                 const errores = [ambitosRes.error, lineasRes.error, tareasRes.error, eventosRes.error, suntzuRes.error].filter(Boolean);
                 const esErrorAuth = errores.some(e => e && (e.code === '42501' || e.code === 'PGRST301' || (e.message || '').includes('JWT')));
@@ -635,6 +679,8 @@
             data.eventos = (eventosRes.data || []).map(rowToEvento);
             data.suntzu = (suntzuRes.data || []).map(rowToFactor);
 
+            console.log("Datos cargados OK:", data.ambitos.length, "ámbitos,", data.tareas.length, "tareas");
+            ocultarLoading();
             ocultarBannerSesion();
             return true;
         }
@@ -1367,16 +1413,17 @@
                 return;
             }
 
-            // getSession con timeout: si no responde en 5s, storage local corrupto → limpiar y forzar login
+            // getSession con timeout: si no responde en 15s, storage local corrupto → limpiar y forzar login
             let session = null;
             try {
+                mostrarLoading();
                 const result = await Promise.race([
                     sbClient.auth.getSession(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('SESSION_TIMEOUT')), 5000))
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('SESSION_TIMEOUT')), 15000))
                 ]);
                 session = result && result.data ? result.data.session : null;
             } catch(e) {
-                console.warn("getSession no respondió, limpiando storage:", e);
+                console.warn("getSession no respondió en 15s, limpiando storage:", e);
                 try { localStorage.clear(); } catch(_) {}
                 try { sessionStorage.clear(); } catch(_) {}
                 session = null;
@@ -1385,6 +1432,7 @@
             if(session) {
                 await mostrarAppLogueado(session);
             } else {
+                ocultarLoading();
                 mostrarLogin();
             }
         })();

@@ -1,8 +1,8 @@
-// Service Worker mínimo para habilitar instalación como PWA.
-// Por ahora no cachea nada: pasa todas las requests a red directamente.
-// (Cuando queramos modo offline, agregaremos estrategia de cache aquí.)
+// Service Worker mínimo.
+// NO intercepta fetch — así no interfiere con requests a Supabase ni CDNs.
+// Su única razón de existir es habilitar el prompt "Instalar app" en Chrome/Android.
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
@@ -12,8 +12,4 @@ self.addEventListener('activate', (event) => {
     event.waitUntil(self.clients.claim());
 });
 
-self.addEventListener('fetch', (event) => {
-    // Solo interceptamos requests GET del mismo origen para no romper Supabase.
-    // Todo pasa directo a red.
-    event.respondWith(fetch(event.request));
-});
+// Sin fetch handler: el navegador maneja todas las requests directamente.
