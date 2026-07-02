@@ -739,7 +739,8 @@
                         data.tareas = data.tareas.filter(t => t.id !== payload.old.id);
                     }
                     renderTareas();
-                    if(activeAmbitoId && activeDimension === 'operativa') renderDetailedTasks();
+                    actualizarCalendarioGeneral();
+                    if(activeAmbitoId && activeDimension === 'operativa') { renderDetailedTasks(); renderCalendarioCategoria(); }
                 })
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos' }, async (payload) => {
                     if(payload.eventType === 'INSERT') {
@@ -803,6 +804,18 @@
             document.getElementById('btn-show-task-form').classList.remove('flex');
             renderAmbitos();
             renderTareas();
+        }
+
+        // ====================================================================
+        // HELPERS: buscar ámbito al que pertenece una tarea
+        // ====================================================================
+        function getAmbitoDeTarea(tarea) {
+            return data.ambitos.find(a => a.lineas.some(l => l.id === tarea.lineaId));
+        }
+        function tareaEnAmbito(tarea, ambitoId) {
+            const ambito = data.ambitos.find(a => a.id === ambitoId);
+            if(!ambito) return false;
+            return ambito.lineas.some(l => l.id === tarea.lineaId);
         }
 
         // ====================================================================
@@ -906,6 +919,8 @@
 
             toggleTaskForm();
             renderTareas();
+            actualizarCalendarioGeneral();
+            if(activeAmbitoId) renderCalendarioCategoria();
         }
 
         async function moveTask(taskId, nuevoEstado) {
@@ -922,7 +937,8 @@
             if(error) { alert("Error borrando tarea: " + error.message); return; }
             data.tareas = data.tareas.filter(t => t.id !== taskId);
             renderTareas();
-            if(activeAmbitoId && activeDimension === 'operativa') renderDetailedTasks();
+            actualizarCalendarioGeneral();
+            if(activeAmbitoId && activeDimension === 'operativa') { renderDetailedTasks(); renderCalendarioCategoria(); }
         }
 
         function renderTareas() {
@@ -1083,6 +1099,24 @@
                         }
                     });
                 }
+                // Tareas con fecha (agendadas)
+                if(data.tareas) {
+                    data.tareas.forEach(t => {
+                        if(!t.fechaInicio) return;
+                        const inicio = new Date(t.fechaInicio + 'T00:00:00');
+                        const fin = new Date((t.fechaFin || t.fechaInicio) + 'T00:00:00');
+                        if (dateTarget >= inicio && dateTarget <= fin) {
+                            const ambitoT = getAmbitoDeTarea(t);
+                            const colorT = ambitoT ? ambitoT.color : '#78716c';
+                            const dot = document.createElement('div');
+                            dot.className = "text-[8px] px-1 rounded-sm truncate text-stone-800 mb-0.5 leading-tight";
+                            dot.style.backgroundColor = `${colorT}12`;
+                            dot.style.border = `1px dashed ${colorT}`;
+                            dot.innerHTML = `<i class="fa-regular fa-square-check mr-0.5 text-[7px] opacity-80"></i>${t.texto}`;
+                            dayCell.appendChild(dot);
+                        }
+                    });
+                }
                 gridDays.appendChild(dayCell);
             }
         }
@@ -1236,6 +1270,7 @@
             const primerDiaSemana = new Date(anioCat, mesCat, 1).getDay();
             const totalDiasMes = new Date(anioCat, mesCat + 1, 0).getDate();
             const eventosAmbito = (data.eventos || []).filter(e => e.ambitoId === activeAmbitoId);
+            const tareasAmbito = (data.tareas || []).filter(t => tareaEnAmbito(t, activeAmbitoId));
 
             for (let i = 0; i < primerDiaSemana; i++) {
                 const emptyCell = document.createElement('div'); emptyCell.className = "bg-stone-50/40 p-1 border-b border-r border-stone-200/60"; gridDays.appendChild(emptyCell);
@@ -1246,6 +1281,7 @@
                 dayCell.innerHTML = `<span class="text-xs font-bold text-stone-400 mb-0.5">${dia}</span>`;
                 const strFechaTarget = `${anioCat}-${String(mesCat + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
                 const dateTarget = new Date(strFechaTarget + 'T00:00:00');
+                // Eventos
                 eventosAmbito.forEach(evt => {
                     const inicio = new Date(evt.fechaInicio + 'T00:00:00');
                     const fin = new Date((evt.fechaFin || evt.fechaInicio) + 'T00:00:00');
@@ -1253,6 +1289,20 @@
                         const evtBar = document.createElement('div');
                         evtBar.className = "text-[10px] px-1.5 py-0.5 rounded truncate font-medium border text-stone-900 shadow-2xs";
                         evtBar.style.backgroundColor = `${ambito.color}25`; evtBar.style.borderColor = `${ambito.color}60`; evtBar.innerText = evt.texto; dayCell.appendChild(evtBar);
+                    }
+                });
+                // Tareas con fecha
+                tareasAmbito.forEach(t => {
+                    if(!t.fechaInicio) return;
+                    const inicio = new Date(t.fechaInicio + 'T00:00:00');
+                    const fin = new Date((t.fechaFin || t.fechaInicio) + 'T00:00:00');
+                    if (dateTarget >= inicio && dateTarget <= fin) {
+                        const tareaBar = document.createElement('div');
+                        tareaBar.className = "text-[10px] px-1.5 py-0.5 rounded truncate text-stone-800";
+                        tareaBar.style.backgroundColor = `${ambito.color}10`;
+                        tareaBar.style.border = `1px dashed ${ambito.color}80`;
+                        tareaBar.innerHTML = `<i class="fa-regular fa-square-check mr-0.5 text-[9px] opacity-70"></i>${t.texto}`;
+                        dayCell.appendChild(tareaBar);
                     }
                 });
                 gridDays.appendChild(dayCell);
