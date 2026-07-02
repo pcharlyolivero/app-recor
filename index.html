@@ -269,6 +269,9 @@
                     <h3 id="general-calendar-month" class="text-xs font-bold text-stone-800 text-center uppercase tracking-wider">-</h3>
                     <button onclick="cambiarMesGeneral(1)" class="p-1 hover:bg-stone-200 rounded-md text-stone-700 transition-colors"><i class="fa-solid fa-chevron-right text-xs"></i></button>
                 </div>
+                <button onclick="abrirCalendarioExpandido()" class="text-[10px] font-bold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 py-1 px-2 rounded-lg transition-colors flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-expand"></i> Ver mes completo
+                </button>
                 <div class="bg-white p-2 rounded-xl border border-stone-200 flex flex-col max-h-64 overflow-hidden">
                     <div class="grid grid-cols-7 text-left text-[10px] font-bold text-stone-400 pb-1 border-b border-stone-100">
                         <div class="pl-1">D</div><div class="pl-1">L</div><div class="pl-1">M</div><div class="pl-1">M</div><div class="pl-1">J</div><div class="pl-1">V</div><div class="pl-1">S</div>
@@ -394,12 +397,73 @@
                 <div id="st-disciplina" class="flex-1 flex flex-col gap-2 pr-1 max-h-[250px] lg:max-h-none overflow-y-auto"></div>
             </div>
         </div>
+
+        <!-- Sección "Definiciones estratégicas" del ámbito -->
+        <div class="glass rounded-xl p-4 flex flex-col gap-3 mt-2">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-200 pb-2">
+                <div>
+                    <h3 class="text-xs font-black text-stone-800 uppercase tracking-wide"><i class="fa-solid fa-scroll mr-1.5 text-stone-600"></i>Definiciones estratégicas del ámbito</h3>
+                    <span class="text-[10px] text-stone-500 block leading-tight mt-0.5">Objetivos, principios, decisiones clave, líneas de acción a largo plazo.</span>
+                </div>
+                <button onclick="abrirModalDefinicion()" class="text-xs font-bold text-white bg-stone-700 hover:bg-stone-800 py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1 self-start">
+                    <i class="fa-solid fa-plus"></i> Agregar definición
+                </button>
+            </div>
+            <div id="definiciones-container" class="flex flex-col gap-3"></div>
+        </div>
     </main>
+
+    <!-- MODAL: NUEVA / EDITAR DEFINICIÓN ESTRATÉGICA -->
+    <div id="def-modal" class="hidden fixed inset-0 bg-stone-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl border border-stone-200 flex flex-col gap-4">
+            <h3 id="def-modal-title" class="font-bold text-stone-800 text-base flex items-center gap-2">
+                <i class="fa-solid fa-scroll text-stone-600"></i> Nueva definición estratégica
+            </h3>
+            <div class="flex flex-col gap-3 text-sm">
+                <div>
+                    <label class="block text-xs font-bold text-stone-500 mb-1">Título</label>
+                    <input type="text" id="def-modal-titulo" placeholder="Ej: Objetivo estratégico, Ventaja competitiva..." class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:border-stone-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-stone-500 mb-1">Contenido</label>
+                    <textarea id="def-modal-contenido" rows="6" placeholder="Escribí acá el desarrollo de la definición..." class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-stone-500 resize-y"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-2">
+                <button onclick="cerrarModalDefinicion()" class="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-800 font-medium">Cancelar</button>
+                <button onclick="guardarDefinicion()" class="px-4 py-1.5 text-xs bg-stone-700 hover:bg-stone-800 text-white font-bold rounded-lg shadow-sm">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CALENDARIO EXPANDIDO (mes completo con todo) -->
+    <div id="cal-expand-modal" class="hidden fixed inset-0 bg-stone-950/60 backdrop-blur-sm z-50 p-3 sm:p-6 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-xl border border-stone-200 max-w-6xl mx-auto flex flex-col gap-3 p-4 sm:p-6">
+            <div class="flex items-center justify-between gap-3">
+                <h3 class="font-bold text-stone-800 text-base flex items-center gap-2">
+                    <i class="fa-regular fa-calendar text-amber-600"></i>
+                    <span id="cal-expand-title">Calendario</span>
+                </h3>
+                <div class="flex items-center gap-2 bg-stone-100 p-1 rounded-xl border border-stone-200">
+                    <button onclick="cambiarMesGeneral(-1); renderCalendarioExpandido();" class="p-1.5 hover:bg-stone-200 rounded-md text-stone-700"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                    <button onclick="cambiarMesGeneral(1); renderCalendarioExpandido();" class="p-1.5 hover:bg-stone-200 rounded-md text-stone-700"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                </div>
+                <button onclick="cerrarCalendarioExpandido()" class="p-1.5 hover:bg-stone-200 rounded-md text-stone-700" title="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex flex-col overflow-x-auto">
+                <div class="min-w-[700px] flex flex-col">
+                    <div class="calendar-grid text-center text-xs font-bold text-stone-400 pb-2 border-b border-stone-200">
+                        <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
+                    </div>
+                    <div id="cal-expand-days" class="flex-1 calendar-grid gap-px bg-stone-200/60 mt-1 rounded-lg overflow-hidden"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- VENTANA MODAL PARA HITOS -->
     <div id="event-modal" class="hidden fixed inset-0 bg-stone-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-stone-200 flex flex-col gap-4">
-            <h3 class="font-bold text-stone-800 text-base flex items-center gap-2">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-stone-200 flex flex-col gap-4">            <h3 class="font-bold text-stone-800 text-base flex items-center gap-2">
                 <i class="fa-regular fa-calendar-check text-amber-600"></i> Nuevo Registro Temporal
             </h3>
             <div class="flex flex-col gap-3 text-sm">
@@ -436,7 +500,7 @@
         const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // Estructura en memoria (misma forma que la versión original)
-        let data = { ambitos: [], tareas: [], eventos: [], suntzu: [] };
+        let data = { ambitos: [], tareas: [], eventos: [], suntzu: [], definiciones: [] };
         let activeLineaId = null;
         let activeAmbitoId = null;
         let activeDimension = "operativa";
@@ -643,15 +707,16 @@
                 sbClient.from('lineas').select('*').order('orden'),
                 sbClient.from('tareas').select('*'),
                 sbClient.from('eventos').select('*'),
-                sbClient.from('suntzu').select('*')
+                sbClient.from('suntzu').select('*'),
+                sbClient.from('definiciones').select('*').order('orden')
             ]);
             const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('TIMEOUT')), 10000)
             );
 
-            let ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes;
+            let ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes, definicionesRes;
             try {
-                [ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes] =
+                [ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes, definicionesRes] =
                     await Promise.race([queriesPromise, timeoutPromise]);
             } catch(e) {
                 console.error("Timeout cargando datos:", e);
@@ -660,11 +725,11 @@
                 return false;
             }
 
-            if(ambitosRes.error || lineasRes.error || tareasRes.error || eventosRes.error || suntzuRes.error) {
-                console.error("Error cargando datos", { ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes });
+            if(ambitosRes.error || lineasRes.error || tareasRes.error || eventosRes.error || suntzuRes.error || definicionesRes.error) {
+                console.error("Error cargando datos", { ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes, definicionesRes });
                 ocultarLoading();
                 // Detectar si es error de sesión/permiso vs otro tipo
-                const errores = [ambitosRes.error, lineasRes.error, tareasRes.error, eventosRes.error, suntzuRes.error].filter(Boolean);
+                const errores = [ambitosRes.error, lineasRes.error, tareasRes.error, eventosRes.error, suntzuRes.error, definicionesRes.error].filter(Boolean);
                 const esErrorAuth = errores.some(e => e && (e.code === '42501' || e.code === 'PGRST301' || (e.message || '').includes('JWT')));
                 if(esErrorAuth) {
                     mostrarBannerSesion("Tu sesión expiró o no tenés permisos. Volvé a entrar.");
@@ -688,6 +753,7 @@
             data.tareas = (tareasRes.data || []).map(rowToTarea);
             data.eventos = (eventosRes.data || []).map(rowToEvento);
             data.suntzu = (suntzuRes.data || []).map(rowToFactor);
+            data.definiciones = (definicionesRes.data || []).map(rowToDefinicion);
 
             console.log("Datos cargados OK:", data.ambitos.length, "ámbitos,", data.tareas.length, "tareas");
             ocultarLoading();
@@ -721,6 +787,15 @@
                 ambitoId: row.ambito_id,
                 columna: row.columna,
                 texto: row.texto
+            };
+        }
+        function rowToDefinicion(row) {
+            return {
+                id: row.id,
+                ambitoId: row.ambito_id,
+                titulo: row.titulo,
+                contenido: row.contenido || '',
+                orden: row.orden || 0
             };
         }
 
@@ -765,6 +840,17 @@
                         data.suntzu = data.suntzu.filter(s => s.id !== payload.old.id);
                     }
                     if(activeDimension === 'estrategica') renderTableroSunTzu();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'definiciones' }, async (payload) => {
+                    if(payload.eventType === 'INSERT') {
+                        if(!data.definiciones.some(d => d.id === payload.new.id)) data.definiciones.push(rowToDefinicion(payload.new));
+                    } else if(payload.eventType === 'UPDATE') {
+                        const idx = data.definiciones.findIndex(d => d.id === payload.new.id);
+                        if(idx !== -1) data.definiciones[idx] = rowToDefinicion(payload.new);
+                    } else if(payload.eventType === 'DELETE') {
+                        data.definiciones = data.definiciones.filter(d => d.id !== payload.old.id);
+                    }
+                    if(activeDimension === 'estrategica') renderDefiniciones();
                 })
                 .subscribe();
         }
@@ -1087,6 +1173,7 @@
                 dayCell.innerHTML = `<span class="font-bold text-stone-400 text-[9px] block mb-0.5 pl-0.5">${dia}</span>`;
                 const targetStr = `${anioGen}-${String(mesGen + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
                 const dateTarget = new Date(targetStr + 'T00:00:00');
+                const tooltipItems = []; // acumulamos títulos para tooltip nativo
                 if(data.eventos) {
                     data.eventos.forEach(evt => {
                         const inicio = new Date(evt.fechaInicio + 'T00:00:00');
@@ -1096,6 +1183,8 @@
                             const dot = document.createElement('div');
                             dot.className = "text-[8px] px-1 rounded-sm truncate text-stone-900 font-semibold border-l-2 mb-0.5 leading-tight";
                             dot.style.backgroundColor = `${colorCat}20`; dot.style.borderColor = colorCat; dot.innerText = evt.texto; dayCell.appendChild(dot);
+                            const nombreAmb = evt.ambitoId === 'libre' ? 'Libre' : (data.ambitos.find(a => a.id === evt.ambitoId)?.nombre || '');
+                            tooltipItems.push(`• [${nombreAmb}] ${evt.texto}`);
                         }
                     });
                 }
@@ -1114,16 +1203,80 @@
                             dot.style.border = `1px dashed ${colorT}`;
                             dot.innerHTML = `<i class="fa-regular fa-square-check mr-0.5 text-[7px] opacity-80"></i>${t.texto}`;
                             dayCell.appendChild(dot);
+                            tooltipItems.push(`✓ [${ambitoT ? ambitoT.nombre : 'sin ámbito'}] ${t.texto}`);
                         }
                     });
+                }
+                if(tooltipItems.length > 0) {
+                    dayCell.title = `${dia} de ${MESES_NOMBRES[mesGen]}\n\n${tooltipItems.join('\n')}`;
+                    dayCell.style.cursor = 'pointer';
+                    dayCell.addEventListener('click', () => abrirCalendarioExpandido());
                 }
                 gridDays.appendChild(dayCell);
             }
         }
 
         // ====================================================================
-        // NAVEGACIÓN Y AMBITO ACTIVO
+        // CALENDARIO EXPANDIDO (modal a pantalla grande con TODO)
         // ====================================================================
+        function abrirCalendarioExpandido() {
+            document.getElementById('cal-expand-modal').classList.remove('hidden');
+            renderCalendarioExpandido();
+        }
+        function cerrarCalendarioExpandido() {
+            document.getElementById('cal-expand-modal').classList.add('hidden');
+            actualizarCalendarioGeneral();  // refrescamos el chico por si el mes cambió
+        }
+        function renderCalendarioExpandido() {
+            document.getElementById('cal-expand-title').innerText = `${MESES_NOMBRES[mesGen]} ${anioGen}`;
+            const gridDays = document.getElementById('cal-expand-days');
+            if(!gridDays) return; gridDays.innerHTML = '';
+            const primerDia = new Date(anioGen, mesGen, 1).getDay();
+            const totalDias = new Date(anioGen, mesGen + 1, 0).getDate();
+            for (let i = 0; i < primerDia; i++) {
+                const empty = document.createElement('div'); empty.className = "bg-stone-50/40 p-1 border-b border-r border-stone-200/60"; gridDays.appendChild(empty);
+            }
+            for (let dia = 1; dia <= totalDias; dia++) {
+                const dayCell = document.createElement('div');
+                dayCell.className = "bg-white p-2 border-b border-r border-stone-200/60 flex flex-col gap-1 overflow-hidden day-cell text-left min-h-[90px]";
+                dayCell.innerHTML = `<span class="text-sm font-bold text-stone-500 mb-1">${dia}</span>`;
+                const targetStr = `${anioGen}-${String(mesGen + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                const dateTarget = new Date(targetStr + 'T00:00:00');
+                // Eventos
+                (data.eventos || []).forEach(evt => {
+                    const inicio = new Date(evt.fechaInicio + 'T00:00:00');
+                    const fin = new Date((evt.fechaFin || evt.fechaInicio) + 'T00:00:00');
+                    if (dateTarget >= inicio && dateTarget <= fin) {
+                        const colorCat = evt.ambitoId === 'libre' ? '#78716c' : (data.ambitos.find(a => a.id === evt.ambitoId)?.color || '#a8a29e');
+                        const nombreAmb = evt.ambitoId === 'libre' ? 'Libre' : (data.ambitos.find(a => a.id === evt.ambitoId)?.nombre || '');
+                        const bar = document.createElement('div');
+                        bar.className = "text-[10px] px-1.5 py-0.5 rounded truncate font-medium border text-stone-900 shadow-2xs";
+                        bar.style.backgroundColor = `${colorCat}25`; bar.style.borderColor = `${colorCat}60`;
+                        bar.innerText = evt.texto;
+                        bar.title = `[${nombreAmb}] ${evt.texto}`;
+                        dayCell.appendChild(bar);
+                    }
+                });
+                // Tareas con fecha
+                (data.tareas || []).forEach(t => {
+                    if(!t.fechaInicio) return;
+                    const inicio = new Date(t.fechaInicio + 'T00:00:00');
+                    const fin = new Date((t.fechaFin || t.fechaInicio) + 'T00:00:00');
+                    if (dateTarget >= inicio && dateTarget <= fin) {
+                        const ambitoT = getAmbitoDeTarea(t);
+                        const colorT = ambitoT ? ambitoT.color : '#78716c';
+                        const bar = document.createElement('div');
+                        bar.className = "text-[10px] px-1.5 py-0.5 rounded truncate text-stone-800";
+                        bar.style.backgroundColor = `${colorT}10`;
+                        bar.style.border = `1px dashed ${colorT}80`;
+                        bar.innerHTML = `<i class="fa-regular fa-square-check mr-0.5 text-[9px] opacity-70"></i>${t.texto}`;
+                        bar.title = `[${ambitoT ? ambitoT.nombre : 'sin ámbito'}] ${t.texto}`;
+                        dayCell.appendChild(bar);
+                    }
+                });
+                gridDays.appendChild(dayCell);
+            }
+        }
         function navegarAPantallaCategoria(ambitoId) {
             activeAmbitoId = ambitoId;
             activeDimension = "operativa";
@@ -1370,6 +1523,110 @@
                 if(el && el.children.length === 0) {
                     el.innerHTML = `<p class="text-[11px] text-stone-400 text-center italic py-6 border border-dashed border-stone-200 rounded-lg">Sin vectores.</p>`;
                 }
+            });
+
+            renderDefiniciones();
+        }
+
+        // ====================================================================
+        // DEFINICIONES ESTRATÉGICAS (bloque debajo de las 5 columnas Sun Tzu)
+        // ====================================================================
+        let editandoDefinicionId = null;
+
+        function abrirModalDefinicion(defId = null) {
+            editandoDefinicionId = defId;
+            const titulo = document.getElementById('def-modal-titulo');
+            const contenido = document.getElementById('def-modal-contenido');
+            const modalTitle = document.getElementById('def-modal-title');
+            if(defId) {
+                const def = data.definiciones.find(d => d.id === defId);
+                if(def) {
+                    titulo.value = def.titulo;
+                    contenido.value = def.contenido;
+                    modalTitle.innerHTML = '<i class="fa-solid fa-scroll text-stone-600"></i> Editar definición estratégica';
+                }
+            } else {
+                titulo.value = '';
+                contenido.value = '';
+                modalTitle.innerHTML = '<i class="fa-solid fa-scroll text-stone-600"></i> Nueva definición estratégica';
+            }
+            document.getElementById('def-modal').classList.remove('hidden');
+            setTimeout(() => titulo.focus(), 100);
+        }
+        function cerrarModalDefinicion() {
+            document.getElementById('def-modal').classList.add('hidden');
+            editandoDefinicionId = null;
+        }
+
+        async function guardarDefinicion() {
+            const titulo = document.getElementById('def-modal-titulo').value.trim();
+            const contenido = document.getElementById('def-modal-contenido').value.trim();
+            if(!titulo || !activeAmbitoId) return;
+
+            if(editandoDefinicionId) {
+                const { error } = await sbClient.from('definiciones')
+                    .update({ titulo, contenido }).eq('id', editandoDefinicionId);
+                if(error) { alert("Error actualizando: " + error.message); return; }
+                const d = data.definiciones.find(x => x.id === editandoDefinicionId);
+                if(d) { d.titulo = titulo; d.contenido = contenido; }
+            } else {
+                const orden = (data.definiciones.filter(d => d.ambitoId === activeAmbitoId).length) + 1;
+                const payload = {
+                    ambito_id: activeAmbitoId,
+                    titulo, contenido, orden,
+                    autor_id: currentUser ? currentUser.id : null
+                };
+                const { data: inserted, error } = await sbClient.from('definiciones').insert(payload).select().single();
+                if(error) { alert("Error guardando: " + error.message); return; }
+                data.definiciones.push(rowToDefinicion(inserted));
+            }
+            cerrarModalDefinicion();
+            renderDefiniciones();
+        }
+
+        async function deleteDefinicion(defId) {
+            if(!confirm('¿Borrar esta definición? No se puede deshacer.')) return;
+            const { error } = await sbClient.from('definiciones').delete().eq('id', defId);
+            if(error) { alert("Error borrando: " + error.message); return; }
+            data.definiciones = data.definiciones.filter(d => d.id !== defId);
+            renderDefiniciones();
+        }
+
+        function renderDefiniciones() {
+            const container = document.getElementById('definiciones-container');
+            if(!container) return; container.innerHTML = '';
+            const ambito = data.ambitos.find(a => a.id === activeAmbitoId);
+            if(!ambito) return;
+
+            const defs = data.definiciones
+                .filter(d => d.ambitoId === activeAmbitoId)
+                .sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+            if(defs.length === 0) {
+                container.innerHTML = `<p class="text-[11px] text-stone-400 text-center italic py-6 border border-dashed border-stone-200 rounded-lg">Sin definiciones estratégicas todavía. Agregá la primera con el botón de arriba.</p>`;
+                return;
+            }
+
+            defs.forEach(def => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-xl border border-stone-200 shadow-2xs flex flex-col gap-2 group hover:border-stone-400 transition-all";
+                card.style.borderLeft = `4px solid ${ambito.color}`;
+                const contenidoHtml = def.contenido ? def.contenido.replace(/\n/g, '<br>') : '<span class="text-stone-400 italic">Sin contenido</span>';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start gap-2">
+                        <h4 class="text-sm font-bold text-stone-800 flex-1">${def.titulo}</h4>
+                        <div class="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
+                            <button onclick="abrirModalDefinicion('${def.id}')" class="text-stone-400 hover:text-stone-700 text-xs px-2 py-1" title="Editar">
+                                <i class="fa-regular fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="deleteDefinicion('${def.id}')" class="text-stone-400 hover:text-rose-600 text-xs px-2 py-1" title="Borrar">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-xs text-stone-700 leading-relaxed whitespace-pre-wrap">${contenidoHtml}</p>
+                `;
+                container.appendChild(card);
             });
         }
 
