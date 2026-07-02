@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centro de Mando Estratégico</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><!-- Cliente Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            background-color: #fbf9f4;
+            color: #2e251f;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(46, 37, 31, 0.08);
+            box-shadow: 0 4px 20px -2px rgba(46, 37, 31, 0.05);
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+        }
+        .day-cell {
+            min-height: 75px;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.03); }
+        ::-webkit-scrollbar-thumb { background: rgba(46, 37, 31, 0.15); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(46, 37, 31, 0.3); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased pb-8">
+
+    <!-- ========================================== -->
+    <!-- PANTALLA DE LOGIN                          -->
+    <!-- ========================================== -->
+    <div id="login-screen" class="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-amber-50 to-stone-100 z-50 p-4">
+        <div class="w-full max-w-md">
+            <div class="text-center mb-8">
+                <div class="inline-flex p-4 bg-amber-500 rounded-2xl shadow-lg mb-4">
+                    <i class="fa-solid fa-layer-group text-3xl text-amber-950"></i>
+                </div>
+                <h1 class="text-2xl font-black text-amber-950 uppercase tracking-wide">Centro de Mando Estratégico</h1>
+                <p class="text-sm text-stone-500 mt-2">Ingresá con tus credenciales para continuar</p>
+            </div>
+            <div class="bg-white rounded-2xl shadow-xl p-6 border border-stone-200">
+                <div class="flex flex-col gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-stone-500 uppercase tracking-wide mb-1">Email</label>
+                        <input type="email" id="login-email" placeholder="tu-email@ejemplo.com" class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-stone-500 uppercase tracking-wide mb-1">Contraseña</label>
+                        <input type="password" id="login-password" placeholder="••••••••" class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div id="login-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2"></div>
+                    <button onclick="handleLogin()" id="btn-login" class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-amber-950 font-bold rounded-xl text-sm transition-all shadow-md">
+                        <i class="fa-solid fa-arrow-right-to-bracket mr-2"></i>Ingresar
+                    </button>
+                </div>
+            </div>
+            <p class="text-[10px] text-stone-400 text-center mt-4">Si no tenés credenciales, contactá al coordinador.</p>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: CAMBIAR CONTRASEÑA                  -->
+    <!-- ========================================== -->
+    <div id="password-modal" class="hidden fixed inset-0 bg-stone-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-stone-200 flex flex-col gap-4">
+            <h3 class="font-bold text-stone-800 text-base flex items-center gap-2">
+                <i class="fa-solid fa-key text-amber-600"></i> Cambiar contraseña
+            </h3>
+            <div class="flex flex-col gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-stone-500 mb-1">Nueva contraseña (mínimo 6 caracteres)</label>
+                    <input type="password" id="new-password" placeholder="••••••••" class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-stone-500 mb-1">Repetir nueva contraseña</label>
+                    <input type="password" id="new-password-confirm" placeholder="••••••••" class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+                </div>
+                <div id="password-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2"></div>
+                <div id="password-success" class="hidden text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2"></div>
+            </div>
+            <div class="flex justify-end gap-2 mt-2">
+                <button onclick="closePasswordModal()" class="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-800 font-medium">Cancelar</button>
+                <button onclick="handleChangePassword()" class="px-4 py-1.5 text-xs bg-amber-600 hover:bg-amber-500 text-amber-950 font-bold rounded-lg shadow-sm">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CABECERA PRINCIPAL -->
+    <header id="main-header" class="hidden h-auto md:h-16 flex-col md:flex-row items-center justify-between p-4 md:px-8 bg-amber-500 z-10 shadow-md gap-3 transition-colors duration-300">
+        <div class="flex items-center justify-between w-full md:w-auto gap-3">
+            <div class="flex items-center gap-3">
+                <button id="btn-back-router" onclick="routerAtras()" class="hidden p-1.5 bg-white/20 hover:bg-white/40 text-stone-900 rounded-lg transition-colors cursor-pointer mr-1">
+                    <i class="fa-solid fa-arrow-left text-sm"></i>
+                </button>
+                <div class="p-2 bg-amber-950/10 text-amber-950 rounded-lg border border-amber-950/20" id="header-icon-box">
+                    <i id="main-icon" class="fa-solid fa-layer-group text-xl"></i>
+                </div>
+                <h1 id="main-title" class="text-base md:text-xl font-black tracking-wide text-amber-950 uppercase">CENTRO DE MANDO ESTRATÉGICO</h1>
+            </div>
+            <div class="text-sm font-medium text-amber-950/80 md:hidden" id="current-date-mobile"></div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between md:justify-end gap-3 w-full md:w-auto">
+            <!-- Backup -->
+            <div class="flex gap-1 bg-amber-950/10 p-1 rounded-xl border border-amber-950/10">
+                <button onclick="exportarDatos()" class="px-2.5 py-1 text-[11px] font-bold bg-amber-950/20 hover:bg-amber-950/30 text-amber-950 rounded-lg transition-all" title="Bajar respaldo local (JSON)">
+                    <i class="fa-solid fa-download mr-1"></i> Backup
+                </button>
+            </div>
+
+            <!-- Selector dinámico de dimensión -->
+            <div id="selector-dimensiones" class="hidden bg-stone-900/10 p-1 rounded-xl flex gap-1 border border-stone-900/10">
+                <button id="tab-operativa" onclick="cambiarDimensionAmbito('operativa')" class="px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all text-stone-900 bg-white/80 shadow-xs">
+                    <i class="fa-solid fa-square-poll-horizontal mr-1"></i> Bitácora
+                </button>
+                <button id="tab-estrategica" onclick="cambiarDimensionAmbito('estrategica')" class="px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all text-stone-700 hover:text-stone-900">
+                    <i class="fa-solid fa-chess-knight mr-1"></i> Sun Tzu
+                </button>
+            </div>
+
+            <!-- Menú usuario -->
+            <div class="relative">
+                <button onclick="toggleUserMenu()" class="flex items-center gap-2 px-2.5 py-1 text-[11px] font-bold bg-amber-950/20 hover:bg-amber-950/30 text-amber-950 rounded-lg transition-all">
+                    <i class="fa-solid fa-user-circle"></i>
+                    <span id="user-email-header" class="hidden sm:inline max-w-[140px] truncate"></span>
+                    <i class="fa-solid fa-chevron-down text-[8px]"></i>
+                </button>
+                <div id="user-menu" class="hidden absolute right-0 mt-1 w-52 bg-white rounded-xl shadow-lg border border-stone-200 z-30 py-1">
+                    <div class="px-3 py-2 border-b border-stone-100">
+                        <p class="text-[10px] text-stone-400 uppercase tracking-wide">Sesión</p>
+                        <p id="user-email-menu" class="text-xs text-stone-700 truncate font-medium"></p>
+                    </div>
+                    <button onclick="openPasswordModal()" class="w-full text-left px-3 py-2 text-xs text-stone-700 hover:bg-stone-100 flex items-center gap-2">
+                        <i class="fa-solid fa-key text-stone-400"></i> Cambiar contraseña
+                    </button>
+                    <button onclick="handleLogout()" class="w-full text-left px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar sesión
+                    </button>
+                </div>
+            </div>
+
+            <div class="hidden md:block text-sm font-medium text-amber-950/80" id="current-date"></div>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- PANTALLA 1: CUADRO PRINCIPAL (INDEX)       -->
+    <!-- ========================================== -->
+    <main id="vista-principal" class="hidden flex-1 flex-col lg:flex-row p-4 md:p-6 gap-6">
+
+        <!-- COLUMNA 1: Ámbitos -->
+        <section class="w-full lg:w-80 flex flex-col gap-4">
+            <div class="flex items-center justify-between px-2">
+                <h2 class="text-xs font-semibold tracking-widest text-stone-500 uppercase">Estructura & Enfoque</h2>
+                <button onclick="setVistaGlobalKanban()" class="text-[11px] bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold px-2 py-0.5 rounded transition-colors">
+                    <i class="fa-solid fa-globe mr-1"></i>Ver Todo
+                </button>
+            </div>
+            <div class="glass rounded-2xl p-4 flex flex-col gap-3 max-h-[400px] lg:max-h-none overflow-y-auto" id="ambitos-container"></div>
+        </section>
+
+        <!-- COLUMNA 2: Espacio de Kanban -->
+        <section class="flex-1 flex flex-col gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-2">
+                <div>
+                    <h2 class="text-xs font-semibold tracking-widest text-stone-500 uppercase">Espacio de Trabajo</h2>
+                    <h3 class="text-lg font-bold text-stone-800 mt-1" id="active-line-title">Tablero Táctico Global</h3>
+                </div>
+                <button id="btn-show-task-form" onclick="toggleTaskForm()" class="hidden px-4 py-2 bg-amber-600 hover:bg-amber-500 text-amber-950 font-bold rounded-xl text-sm transition-all shadow-md items-center gap-2 self-start sm:self-auto">
+                    <i class="fa-solid fa-plus"></i> Nueva Tarea
+                </button>
+            </div>
+
+            <div id="task-form-container" class="hidden glass rounded-xl p-4 flex flex-col gap-3 transition-all">
+                <input type="text" id="input-task-text" placeholder="¿Qué tarea vas a ejecutar?" class="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-amber-500">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-400 mb-0.5 uppercase tracking-wide">Inicio (Opcional)</label>
+                        <input type="date" id="input-task-inicio" class="w-full bg-white border border-stone-300 rounded-lg p-1.5 text-xs text-stone-700 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-400 mb-0.5 uppercase tracking-wide">Fin (Opcional)</label>
+                        <input type="date" id="input-task-fin" class="w-full bg-white border border-stone-300 rounded-lg p-1.5 text-xs text-stone-700 focus:outline-none">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 mt-1">
+                    <button onclick="toggleTaskForm()" class="px-3 py-1 text-xs text-stone-500 hover:text-stone-800">Cancelar</button>
+                    <button onclick="addNewTask()" class="px-3 py-1 text-xs bg-amber-600 text-amber-950 font-bold rounded-md">Guardar Tarea</button>
+                </div>
+            </div>
+
+            <!-- Kanban -->
+            <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="glass rounded-xl p-4 flex flex-col border-t-2 border-stone-400 min-h-[250px] md:min-h-0">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-bold text-stone-600 uppercase tracking-wider">Por Hacer</span>
+                        <span id="count-todo" class="text-xs bg-stone-200 text-stone-700 px-2 py-0.5 rounded-full font-bold">0</span>
+                    </div>
+                    <div id="tasks-todo" class="flex-1 overflow-y-auto flex flex-col gap-2 pr-1 max-h-[400px] md:max-h-[60vh]"></div>
+                </div>
+                <div class="glass rounded-xl p-4 flex flex-col border-t-2 border-amber-500 min-h-[250px] md:min-h-0">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-bold text-amber-600 uppercase tracking-wider">En Proceso</span>
+                        <span id="count-progress" class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">0</span>
+                    </div>
+                    <div id="tasks-progress" class="flex-1 overflow-y-auto flex flex-col gap-2 pr-1 max-h-[400px] md:max-h-[60vh]"></div>
+                </div>
+                <div class="glass rounded-xl p-4 flex flex-col border-t-2 border-emerald-500 min-h-[250px] md:min-h-0">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-bold text-emerald-600 uppercase tracking-wider">Terminado</span>
+                        <span id="count-done" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">0</span>
+                    </div>
+                    <div id="tasks-done" class="flex-1 overflow-y-auto flex flex-col gap-2 pr-1 max-h-[400px] md:max-h-[60vh]"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- COLUMNA 3: Agenda Global -->
+        <section class="w-full lg:w-96 flex flex-col gap-4">
+            <h2 class="text-xs font-semibold tracking-widest text-stone-500 uppercase px-2">Cronograma & Vista Global</h2>
+            <div class="flex-1 glass rounded-2xl p-4 flex flex-col gap-4">
+                <div class="flex items-center justify-between bg-stone-100 p-2 rounded-xl border border-stone-200">
+                    <button onclick="cambiarMesGeneral(-1)" class="p-1 hover:bg-stone-200 rounded-md text-stone-700 transition-colors"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                    <h3 id="general-calendar-month" class="text-xs font-bold text-stone-800 text-center uppercase tracking-wider">-</h3>
+                    <button onclick="cambiarMesGeneral(1)" class="p-1 hover:bg-stone-200 rounded-md text-stone-700 transition-colors"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                </div>
+                <div class="bg-white p-2 rounded-xl border border-stone-200 flex flex-col max-h-64 overflow-hidden">
+                    <div class="grid grid-cols-7 text-left text-[10px] font-bold text-stone-400 pb-1 border-b border-stone-100">
+                        <div class="pl-1">D</div><div class="pl-1">L</div><div class="pl-1">M</div><div class="pl-1">M</div><div class="pl-1">J</div><div class="pl-1">V</div><div class="pl-1">S</div>
+                    </div>
+                    <div id="general-calendar-days" class="grid grid-cols-7 gap-px bg-stone-100 mt-1 overflow-y-auto rounded text-[10px]"></div>
+                </div>
+
+                <div class="bg-stone-100 p-3 rounded-xl border border-stone-200 flex flex-col gap-2">
+                    <span class="text-[11px] font-bold text-stone-600 uppercase tracking-wide"><i class="fa-solid fa-calendar-plus mr-1"></i> Registrar Otro Hito</span>
+                    <input type="text" id="input-evt-texto" placeholder="Descripción de la acción..." class="w-full bg-white border border-stone-300 rounded-lg px-2.5 py-1.5 text-xs text-stone-800 focus:outline-none focus:border-stone-500">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[9px] font-bold text-stone-400 uppercase block mb-0.5">Inicio</label>
+                            <input type="date" id="input-evt-inicio" class="w-full bg-white border border-stone-300 rounded-lg p-1 text-[11px] text-stone-700 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[9px] font-bold text-stone-400 uppercase block mb-0.5">Fin (Opcional)</label>
+                            <input type="date" id="input-evt-fin" class="w-full bg-white border border-stone-300 rounded-lg p-1 text-[11px] text-stone-700 focus:outline-none">
+                        </div>
+                    </div>
+                    <button onclick="addOtroHitoGlobal()" class="w-full py-1.5 bg-stone-600 hover:bg-stone-700 text-white font-bold rounded-lg text-xs transition-colors shadow-xs">Guardar Hito Libre</button>
+                </div>
+
+                <div class="flex-1 flex flex-col gap-2 max-h-[300px] overflow-y-auto" id="events-container"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- PANTALLA 2: VENTANA OPERATIVA (ÁMBITO)     -->
+    <!-- ========================================== -->
+    <main id="vista-categoria" class="flex-1 hidden flex-col lg:flex-row p-4 md:p-6 gap-6">
+        <section class="w-full lg:w-96 flex flex-col gap-4 flex-shrink-0">
+            <div class="flex items-center justify-between px-1">
+                <h2 class="text-xs font-semibold tracking-widest text-stone-500 uppercase">Bitácora del Ámbito</h2>
+                <span id="cat-task-count" class="text-xs bg-stone-200 text-stone-700 px-2.5 py-0.5 rounded-full font-bold">0</span>
+            </div>
+            <div id="detailed-tasks-container" class="flex-1 flex flex-col gap-3 pr-1 max-h-[400px] lg:max-h-none overflow-y-auto"></div>
+        </section>
+
+        <section class="flex-1 flex flex-col gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
+                <div class="flex items-center gap-3 bg-stone-200/40 px-2 py-1 rounded-xl border border-stone-200 self-start">
+                    <button onclick="cambiarMesCategoria(-1)" class="p-1 hover:bg-stone-200 rounded-md text-stone-700 transition-colors">
+                        <i class="fa-solid fa-chevron-left text-xs"></i>
+                    </button>
+                    <h2 id="cat-calendar-month-year" class="text-sm font-bold text-stone-800 min-w-[110px] text-center">-</h2>
+                    <button onclick="cambiarMesCategoria(1)" class="p-1 hover:bg-stone-200 rounded-md text-stone-700 transition-colors">
+                        <i class="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
+                </div>
+                <button onclick="openEventModal()" id="btn-add-event" class="px-4 py-1.5 text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 text-white self-start sm:self-auto">
+                    <i class="fa-solid fa-calendar-plus"></i> Agendar Viaje / Hito
+                </button>
+            </div>
+            <div class="flex-1 glass rounded-2xl p-4 flex flex-col overflow-x-auto">
+                <div class="min-w-[600px] flex flex-col h-full">
+                    <div class="calendar-grid text-center text-xs font-bold text-stone-400 pb-2 border-b border-stone-200">
+                        <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
+                    </div>
+                    <div id="cat-calendar-days" class="flex-1 calendar-grid gap-px bg-stone-200/60 mt-1 rounded-lg overflow-hidden"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- PANTALLA 3: PANEL ESTRATÉGICO (SUN TZU)    -->
+    <!-- ========================================== -->
+    <main id="vista-estrategica" class="flex-1 hidden flex-col p-4 md:p-6 gap-4">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 px-2 flex-shrink-0">
+            <div>
+                <h2 class="text-xs font-semibold tracking-widest text-stone-500 uppercase">Pensamiento de Sun Tzu</h2>
+                <p class="text-xs text-stone-400">Los 5 elementos fundamentales que determinan la victoria antes de la batalla.</p>
+            </div>
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white p-1.5 rounded-xl border border-stone-300 shadow-2xs">
+                <select id="select-st-columna" class="bg-stone-100 border border-stone-200 text-xs rounded-lg px-2 py-1 text-stone-800 focus:outline-none">
+                    <option value="doctrina">1. La Doctrina</option>
+                    <option value="tiempo">2. El Tiempo</option>
+                    <option value="terreno">3. El Terreno</option>
+                    <option value="mando">4. El Mando</option>
+                    <option value="disciplina">5. La Disciplina</option>
+                </select>
+                <input type="text" id="input-st-texto" placeholder="Escribe un vector crítico o principio..." class="w-full sm:w-72 text-xs bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1 focus:outline-none">
+                <button onclick="addFactorEstrategico()" class="bg-stone-800 hover:bg-stone-900 text-white text-xs px-3 py-1 font-bold rounded-lg transition-colors whitespace-nowrap">Inyectar</button>
+            </div>
+        </div>
+
+        <div class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="glass rounded-xl p-4 flex flex-col border-t-4 border-sky-600">
+                <div class="mb-3">
+                    <h3 class="text-xs font-black text-stone-800 uppercase tracking-wide"><i class="fa-solid fa-gavel mr-1.5 text-sky-600"></i>La Doctrina</h3>
+                    <span class="text-[9px] text-stone-400 block leading-tight mt-0.5">Visión común, valores e identidad que une al grupo.</span>
+                </div>
+                <div id="st-doctrina" class="flex-1 flex flex-col gap-2 pr-1 max-h-[250px] lg:max-h-none overflow-y-auto"></div>
+            </div>
+            <div class="glass rounded-xl p-4 flex flex-col border-t-4 border-amber-500">
+                <div class="mb-3">
+                    <h3 class="text-xs font-black text-stone-800 uppercase tracking-wide"><i class="fa-solid fa-cloud-sun-rain mr-1.5 text-amber-500"></i>El Tiempo</h3>
+                    <span class="text-[9px] text-stone-400 block leading-tight mt-0.5">El clima exterior, momentos políticos y coyunturas.</span>
+                </div>
+                <div id="st-tiempo" class="flex-1 flex flex-col gap-2 pr-1 max-h-[250px] lg:max-h-none overflow-y-auto"></div>
+            </div>
+            <div class="glass rounded-xl p-4 flex flex-col border-t-4 border-emerald-600">
+                <div class="mb-3">
+                    <h3 class="text-xs font-black text-stone-800 uppercase tracking-wide"><i class="fa-solid fa-map-location-dot mr-1.5 text-emerald-600"></i>El Terreno</h3>
+                    <span class="text-[9px] text-stone-400 block leading-tight mt-0.5">El escenario geográfico, legal e institucional.</span>
+                </div>
+                <div id="st-terreno" class="flex-1 flex flex-col gap-2 pr-1 max-h-[250px] lg:max-h-none overflow-y-auto"></div>
+            </div>
+            <div class="glass rounded-xl p-4 flex flex-col border-t-4 border-rose-600">
+                <div class="mb-3">
+                    <h3 class="text-xs font-black text-stone-800 uppercase tracking-wide"><i class="fa-solid fa-crown mr-1.5 text-rose-600"></i>El Mando</h3>
+                    <span class="text-[9px] text-stone-400 block leading-tight mt-0.5">Cualidades de liderazgo, toma de decisiones y coraje.</span>
+                </div>
+                <div id="st-mando" class="flex-1 flex flex-col gap-2 pr-1 max-h-[250px] lg:max-h-none overflow-y-auto"></div>
+            </div>
+            <div class="glass rounded-xl p-4 flex flex-col border-t-4 border-purple-600">
+                <div class="mb-3">
+                    <h3 class="text-xs font-black text-stone-800 uppercase tracking-wide"><i class="fa-solid fa-diagram-project mr-1.5 text-purple-600"></i>La Disciplina</h3>
+                    <span class="text-[9px] text-stone-400 block leading-tight mt-0.5">Estructura operativa, organización y logística.</span>
+                </div>
+                <div id="st-disciplina" class="flex-1 flex flex-col gap-2 pr-1 max-h-[250px] lg:max-h-none overflow-y-auto"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- VENTANA MODAL PARA HITOS -->
+    <div id="event-modal" class="hidden fixed inset-0 bg-stone-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-stone-200 flex flex-col gap-4">
+            <h3 class="font-bold text-stone-800 text-base flex items-center gap-2">
+                <i class="fa-regular fa-calendar-check text-amber-600"></i> Nuevo Registro Temporal
+            </h3>
+            <div class="flex flex-col gap-3 text-sm">
+                <div>
+                    <label class="block text-xs font-bold text-stone-500 mb-1">Descripción</label>
+                    <input type="text" id="modal-event-text" placeholder="Ej: Viaje de coordinación..." class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-stone-500 mb-1">Fecha Inicio</label>
+                        <input type="date" id="modal-event-start" class="w-full bg-stone-50 border border-stone-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-stone-500 mb-1">Fecha Fin</label>
+                        <input type="date" id="modal-event-end" class="w-full bg-stone-50 border border-stone-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-2">
+                <button onclick="closeEventModal()" class="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-800 font-medium">Cancelar</button>
+                <button onclick="saveModalEvent()" id="btn-modal-save" class="px-4 py-1.5 text-xs text-white font-bold rounded-lg shadow-sm">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ====================================================================
+        // CONFIGURACIÓN — REEMPLAZAR CON TUS CREDENCIALES DE SUPABASE
+        // ====================================================================
+        const SUPABASE_URL = "https://jmfzbzduzuryqxozlyfa.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptZnpiemR1enVyeXF4b3pseWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NDY4NjEsImV4cCI6MjA5ODUyMjg2MX0.0Gpzejl4UCxeA2mXLHoC52UASCD6hXRdKa44Tc348Dc";
+        // ====================================================================
+
+        const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Estructura en memoria (misma forma que la versión original)
+        let data = { ambitos: [], tareas: [], eventos: [], suntzu: [] };
+        let activeLineaId = null;
+        let activeAmbitoId = null;
+        let activeDimension = "operativa";
+        let currentUser = null;
+        let realtimeChannel = null;
+
+        const hoy = new Date();
+        let anioGen = hoy.getFullYear();
+        let mesGen = hoy.getMonth();
+        let anioCat = anioGen;
+        let mesCat = mesGen;
+        const MESES_NOMBRES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+        // ====================================================================
+        // AUTENTICACIÓN
+        // ====================================================================
+        async function handleLogin() {
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+            const errorEl = document.getElementById('login-error');
+            const btn = document.getElementById('btn-login');
+
+            errorEl.classList.add('hidden');
+            if(!email || !password) {
+                errorEl.innerText = "Ingresá email y contraseña.";
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Ingresando...';
+
+            const { data: authData, error } = await sbClient.auth.signInWithPassword({ email, password });
+
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket mr-2"></i>Ingresar';
+
+            if(error) {
+                errorEl.innerText = "Credenciales incorrectas o usuario inexistente.";
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            // El listener de onAuthStateChange se encarga del resto
+        }
+
+        async function handleLogout() {
+            if(realtimeChannel) {
+                await sbClient.removeChannel(realtimeChannel);
+                realtimeChannel = null;
+            }
+            await sbClient.auth.signOut();
+            location.reload();
+        }
+
+        function toggleUserMenu() {
+            document.getElementById('user-menu').classList.toggle('hidden');
+        }
+        // cerrar menú al clickear afuera
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('user-menu');
+            if(!menu.classList.contains('hidden') && !e.target.closest('.relative')) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        function openPasswordModal() {
+            document.getElementById('user-menu').classList.add('hidden');
+            document.getElementById('new-password').value = '';
+            document.getElementById('new-password-confirm').value = '';
+            document.getElementById('password-error').classList.add('hidden');
+            document.getElementById('password-success').classList.add('hidden');
+            document.getElementById('password-modal').classList.remove('hidden');
+        }
+        function closePasswordModal() {
+            document.getElementById('password-modal').classList.add('hidden');
+        }
+
+        async function handleChangePassword() {
+            const p1 = document.getElementById('new-password').value;
+            const p2 = document.getElementById('new-password-confirm').value;
+            const errorEl = document.getElementById('password-error');
+            const okEl = document.getElementById('password-success');
+
+            errorEl.classList.add('hidden');
+            okEl.classList.add('hidden');
+
+            if(p1.length < 6) {
+                errorEl.innerText = "La contraseña debe tener al menos 6 caracteres.";
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            if(p1 !== p2) {
+                errorEl.innerText = "Las contraseñas no coinciden.";
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            const { error } = await sbClient.auth.updateUser({ password: p1 });
+            if(error) {
+                errorEl.innerText = "Error: " + error.message;
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            okEl.innerText = "Contraseña actualizada.";
+            okEl.classList.remove('hidden');
+            setTimeout(() => closePasswordModal(), 1500);
+        }
+
+        // ====================================================================
+        // CARGA INICIAL DE DATOS
+        // ====================================================================
+        async function cargarTodoDesdeDB() {
+            const [ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes] = await Promise.all([
+                sbClient.from('ambitos').select('*').order('orden'),
+                sbClient.from('lineas').select('*').order('orden'),
+                sbClient.from('tareas').select('*'),
+                sbClient.from('eventos').select('*'),
+                sbClient.from('suntzu').select('*')
+            ]);
+
+            if(ambitosRes.error || lineasRes.error || tareasRes.error || eventosRes.error || suntzuRes.error) {
+                console.error("Error cargando datos", { ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes });
+                alert("Error cargando datos. Revisá la consola.");
+                return;
+            }
+
+            const lineasPorAmbito = {};
+            (lineasRes.data || []).forEach(l => {
+                if(!lineasPorAmbito[l.ambito_id]) lineasPorAmbito[l.ambito_id] = [];
+                lineasPorAmbito[l.ambito_id].push({ id: l.id, nombre: l.nombre });
+            });
+
+            data.ambitos = (ambitosRes.data || []).map(a => ({
+                id: a.id, nombre: a.nombre, color: a.color, icon: a.icon,
+                lineas: lineasPorAmbito[a.id] || []
+            }));
+
+            data.tareas = (tareasRes.data || []).map(rowToTarea);
+            data.eventos = (eventosRes.data || []).map(rowToEvento);
+            data.suntzu = (suntzuRes.data || []).map(rowToFactor);
+        }
+
+        function rowToTarea(row) {
+            return {
+                id: row.id,
+                lineaId: row.linea_id,
+                texto: row.texto,
+                estado: row.estado,
+                observaciones: row.observaciones || "",
+                fechaInicio: row.fecha_inicio || undefined,
+                fechaFin: row.fecha_fin || undefined
+            };
+        }
+        function rowToEvento(row) {
+            return {
+                id: row.id,
+                ambitoId: row.ambito_id || "libre",
+                texto: row.texto,
+                fechaInicio: row.fecha_inicio,
+                fechaFin: row.fecha_fin
+            };
+        }
+        function rowToFactor(row) {
+            return {
+                id: row.id,
+                ambitoId: row.ambito_id,
+                columna: row.columna,
+                texto: row.texto
+            };
+        }
+
+        // ====================================================================
+        // REALTIME — escucha cambios de otros usuarios
+        // ====================================================================
+        function setupRealtime() {
+            realtimeChannel = sbClient.channel('centro-mando')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'tareas' }, async (payload) => {
+                    if(payload.eventType === 'INSERT') {
+                        if(!data.tareas.some(t => t.id === payload.new.id)) data.tareas.push(rowToTarea(payload.new));
+                    } else if(payload.eventType === 'UPDATE') {
+                        const idx = data.tareas.findIndex(t => t.id === payload.new.id);
+                        if(idx !== -1) data.tareas[idx] = rowToTarea(payload.new);
+                    } else if(payload.eventType === 'DELETE') {
+                        data.tareas = data.tareas.filter(t => t.id !== payload.old.id);
+                    }
+                    renderTareas();
+                    if(activeAmbitoId && activeDimension === 'operativa') renderDetailedTasks();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos' }, async (payload) => {
+                    if(payload.eventType === 'INSERT') {
+                        if(!data.eventos.some(e => e.id === payload.new.id)) data.eventos.push(rowToEvento(payload.new));
+                    } else if(payload.eventType === 'UPDATE') {
+                        const idx = data.eventos.findIndex(e => e.id === payload.new.id);
+                        if(idx !== -1) data.eventos[idx] = rowToEvento(payload.new);
+                    } else if(payload.eventType === 'DELETE') {
+                        data.eventos = data.eventos.filter(e => e.id !== payload.old.id);
+                    }
+                    renderEventos();
+                    actualizarCalendarioGeneral();
+                    if(activeAmbitoId) renderCalendarioCategoria();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'suntzu' }, async (payload) => {
+                    if(payload.eventType === 'INSERT') {
+                        if(!data.suntzu.some(s => s.id === payload.new.id)) data.suntzu.push(rowToFactor(payload.new));
+                    } else if(payload.eventType === 'UPDATE') {
+                        const idx = data.suntzu.findIndex(s => s.id === payload.new.id);
+                        if(idx !== -1) data.suntzu[idx] = rowToFactor(payload.new);
+                    } else if(payload.eventType === 'DELETE') {
+                        data.suntzu = data.suntzu.filter(s => s.id !== payload.old.id);
+                    }
+                    if(activeDimension === 'estrategica') renderTableroSunTzu();
+                })
+                .subscribe();
+        }
+
+        // ====================================================================
+        // BACKUP
+        // ====================================================================
+        function exportarDatos() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            const fecha = new Date().toISOString().split('T')[0];
+            downloadAnchor.setAttribute("download", `backup_mando_${fecha}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function cambiarMesGeneral(dir) {
+            mesGen += dir;
+            if (mesGen > 11) { mesGen = 0; anioGen++; }
+            if (mesGen < 0) { mesGen = 11; anioGen--; }
+            actualizarCalendarioGeneral();
+        }
+        function cambiarMesCategoria(dir) {
+            mesCat += dir;
+            if (mesCat > 11) { mesCat = 0; anioCat++; }
+            if (mesCat < 0) { mesCat = 11; anioCat--; }
+            document.getElementById('cat-calendar-month-year').innerText = `${MESES_NOMBRES[mesCat]} ${anioCat}`;
+            renderCalendarioCategoria();
+        }
+
+        function setVistaGlobalKanban() {
+            activeLineaId = null;
+            document.getElementById('active-line-title').innerText = "Tablero Táctico Global";
+            document.getElementById('btn-show-task-form').classList.add('hidden');
+            document.getElementById('btn-show-task-form').classList.remove('flex');
+            renderAmbitos();
+            renderTareas();
+        }
+
+        // ====================================================================
+        // RENDER: ÁMBITOS
+        // ====================================================================
+        function renderAmbitos() {
+            const container = document.getElementById('ambitos-container');
+            if(!container) return; container.innerHTML = '';
+
+            data.ambitos.forEach(ambito => {
+                const ambitoEl = document.createElement('div');
+                ambitoEl.className = "mb-2 p-3 rounded-xl border transition-all duration-300 flex-shrink-0";
+                ambitoEl.style.borderColor = ambito.color;
+                ambitoEl.style.backgroundColor = `${ambito.color}0d`;
+
+                let html = `
+                    <div onclick="navegarAPantallaCategoria('${ambito.id}')" class="flex items-center justify-between font-bold text-sm pb-2 mb-2 border-b border-stone-200/40 hover:underline cursor-pointer" style="color: ${ambito.color}">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid ${ambito.icon || 'fa-folder'}"></i>
+                            <span>${ambito.nombre}</span>
+                        </div>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px] opacity-50"></i>
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                `;
+
+                ambito.lineas.forEach(linea => {
+                    const isActive = linea.id === activeLineaId;
+                    const coloresEstilo = isActive ? `style="background-color: ${ambito.color}; color: #0b0f19; font-weight: 700;"` : `style="background-color: rgba(0,0,0,0.01);"`;
+                    const clasesExtra = isActive ? `text-stone-900 font-bold` : `text-stone-500 hover:text-stone-800`;
+
+                    html += `
+                        <button onclick="setActiveLinea('${linea.id}')" ${coloresEstilo} class="w-full text-left justify-start items-center text-xs p-2 rounded-lg transition-all duration-200 border border-transparent hover:border-stone-300 flex ${clasesExtra}">
+                            <i class="fa-solid fa-crosshairs mr-1.5 opacity-60 flex-shrink-0"></i>
+                            <span class="text-left flex-1 truncate">${linea.nombre}</span>
+                        </button>
+                    `;
+                });
+
+                html += `</div>`;
+                ambitoEl.innerHTML = html;
+                container.appendChild(ambitoEl);
+            });
+        }
+
+        function setActiveLinea(lineaId) {
+            activeLineaId = lineaId;
+            let lineaObj = null;
+            data.ambitos.forEach(a => {
+                let l = a.lineas.find(lin => lin.id === lineaId);
+                if(l) lineaObj = l;
+            });
+
+            document.getElementById('active-line-title').innerText = lineaObj ? lineaObj.nombre : "Tablero Táctico Global";
+            document.getElementById('btn-show-task-form').classList.remove('hidden');
+            document.getElementById('btn-show-task-form').classList.add('flex');
+
+            renderAmbitos();
+            renderTareas();
+            if(window.innerWidth < 768) {
+                document.getElementById('active-line-title').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // ====================================================================
+        // TAREAS (Kanban)
+        // ====================================================================
+        function toggleTaskForm() {
+            const container = document.getElementById('task-form-container');
+            container.classList.toggle('hidden');
+            document.getElementById('input-task-text').focus();
+        }
+
+        async function addNewTask() {
+            const textInput = document.getElementById('input-task-text');
+            const dateInicio = document.getElementById('input-task-inicio');
+            const dateFin = document.getElementById('input-task-fin');
+
+            if(!textInput.value.trim() || !activeLineaId) return;
+
+            const payload = {
+                linea_id: activeLineaId,
+                texto: textInput.value.trim(),
+                estado: "todo",
+                observaciones: "",
+                autor_id: currentUser ? currentUser.id : null
+            };
+            if(dateInicio && dateInicio.value) {
+                payload.fecha_inicio = dateInicio.value;
+                payload.fecha_fin = dateFin.value ? dateFin.value : dateInicio.value;
+            }
+
+            const { data: inserted, error } = await sbClient.from('tareas').insert(payload).select().single();
+            if(error) { alert("Error creando tarea: " + error.message); return; }
+
+            data.tareas.push(rowToTarea(inserted));
+
+            textInput.value = '';
+            if(dateInicio) dateInicio.value = '';
+            if(dateFin) dateFin.value = '';
+
+            toggleTaskForm();
+            renderTareas();
+        }
+
+        async function moveTask(taskId, nuevoEstado) {
+            const task = data.tareas.find(t => t.id === taskId);
+            if(!task) return;
+            const { error } = await sbClient.from('tareas').update({ estado: nuevoEstado }).eq('id', taskId);
+            if(error) { alert("Error moviendo tarea: " + error.message); return; }
+            task.estado = nuevoEstado;
+            renderTareas();
+        }
+
+        async function deleteTask(taskId) {
+            const { error } = await sbClient.from('tareas').delete().eq('id', taskId);
+            if(error) { alert("Error borrando tarea: " + error.message); return; }
+            data.tareas = data.tareas.filter(t => t.id !== taskId);
+            renderTareas();
+            if(activeAmbitoId && activeDimension === 'operativa') renderDetailedTasks();
+        }
+
+        function renderTareas() {
+            const cols = { todo: document.getElementById('tasks-todo'), progress: document.getElementById('tasks-progress'), done: document.getElementById('tasks-done') };
+            if(!cols.todo) return;
+            Object.values(cols).forEach(c => c.innerHTML = '');
+
+            const filtradas = activeLineaId ? data.tareas.filter(t => t.lineaId === activeLineaId) : data.tareas;
+            let counts = { todo: 0, progress: 0, done: 0 };
+
+            filtradas.forEach(tarea => {
+                counts[tarea.estado]++;
+
+                let colorAmbito = "#78716c"; let nombreAmbito = "General";
+                const am = data.ambitos.find(amb => amb.lineas.some(lin => lin.id === tarea.lineaId));
+                if (am) { colorAmbito = am.color; nombreAmbito = am.nombre; }
+
+                const taskEl = document.createElement('div');
+                taskEl.className = "bg-white p-3 rounded-xl flex flex-col gap-2 transition-all shadow-sm group border-y border-r border-stone-200/80";
+                taskEl.style.borderLeft = `4px solid ${colorAmbito}`;
+                taskEl.style.backgroundColor = `rgba(${hexToRgb(colorAmbito)}, 0.03)`;
+
+                let acciones = '';
+                if(tarea.estado === 'todo') acciones = `<button onclick="moveTask('${tarea.id}', 'progress')" class="text-xs font-semibold text-amber-700 hover:text-amber-900"><i class="fa-solid fa-play mr-1"></i>Iniciar</button>`;
+                else if(tarea.estado === 'progress') {
+                    acciones = `
+                        <button onclick="moveTask('${tarea.id}', 'todo')" class="text-xs font-medium text-stone-500 hover:text-stone-700"><i class="fa-solid fa-backward mr-1"></i>Atrás</button>
+                        <button onclick="moveTask('${tarea.id}', 'done')" class="text-xs font-semibold text-emerald-700 hover:text-emerald-900 ml-3"><i class="fa-solid fa-check mr-1"></i>Fin</button>
+                    `;
+                } else if(tarea.estado === 'done') acciones = `<button onclick="moveTask('${tarea.id}', 'progress')" class="text-xs font-medium text-amber-700 hover:text-amber-900"><i class="fa-solid fa-rotate-left mr-1"></i>Reabrir</button>`;
+
+                let tagFecha = '';
+                if(tarea.fechaInicio) {
+                    const fText = new Date(tarea.fechaInicio + 'T00:00:00').toLocaleDateString('es-ES', {month: 'short', day: 'numeric'});
+                    tagFecha = `<span class="text-[9px] font-bold text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded"><i class="fa-regular fa-calendar mr-1"></i>${fText}</span>`;
+                }
+
+                const tagAmbito = `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded text-white tracking-wide uppercase" style="background-color: ${colorAmbito}">${nombreAmbito}</span>`;
+
+                taskEl.innerHTML = `
+                    <div class="flex flex-col gap-1">
+                        <div class="flex flex-wrap items-center gap-1.5 mb-0.5">
+                            ${tagAmbito} ${tagFecha}
+                        </div>
+                        <p class="text-xs font-bold text-stone-800 leading-snug">${tarea.texto}</p>
+                    </div>
+                    <div class="flex justify-between items-center mt-1 border-t border-stone-200/40 pt-2">
+                        <div class="flex items-center">${acciones}</div>
+                        <button onclick="deleteTask('${tarea.id}')" class="text-stone-400 hover:text-rose-600 text-xs transition-colors md:opacity-0 md:group-hover:opacity-100"><i class="fa-regular fa-trash-can"></i></button>
+                    </div>
+                `;
+                cols[tarea.estado].appendChild(taskEl);
+            });
+
+            document.getElementById('count-todo').innerText = counts.todo;
+            document.getElementById('count-progress').innerText = counts.progress;
+            document.getElementById('count-done').innerText = counts.done;
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : "46, 37, 31";
+        }
+
+        // ====================================================================
+        // EVENTOS
+        // ====================================================================
+        async function addOtroHitoGlobal() {
+            const txtInput = document.getElementById('input-evt-texto');
+            const dateInicio = document.getElementById('input-evt-inicio');
+            const dateFin = document.getElementById('input-evt-fin');
+
+            if (!txtInput.value.trim() || !dateInicio.value) return;
+
+            const payload = {
+                ambito_id: null,  // NULL = hito libre
+                texto: txtInput.value.trim(),
+                fecha_inicio: dateInicio.value,
+                fecha_fin: dateFin.value ? dateFin.value : dateInicio.value,
+                autor_id: currentUser ? currentUser.id : null
+            };
+            const { data: inserted, error } = await sbClient.from('eventos').insert(payload).select().single();
+            if(error) { alert("Error guardando hito: " + error.message); return; }
+
+            data.eventos.push(rowToEvento(inserted));
+            txtInput.value = ''; dateInicio.value = ''; dateFin.value = '';
+            renderEventos(); actualizarCalendarioGeneral();
+        }
+
+        async function deleteEvent(id) {
+            const { error } = await sbClient.from('eventos').delete().eq('id', id);
+            if(error) { alert("Error borrando hito: " + error.message); return; }
+            data.eventos = data.eventos.filter(e => e.id !== id);
+            renderEventos(); actualizarCalendarioGeneral();
+            if(activeAmbitoId) renderCalendarioCategoria();
+        }
+
+        function renderEventos() {
+            const container = document.getElementById('events-container');
+            if(!container) return; container.innerHTML = '';
+            if(!data.eventos || data.eventos.length === 0) {
+                container.innerHTML = `<p class="text-xs text-stone-500 text-center py-4">No hay hitos programados.</p>`;
+                return;
+            }
+            data.eventos.sort((a, b) => new Date(a.fechaInicio || '') - new Date(b.fechaInicio || ''));
+            data.eventos.forEach(evt => {
+                const fObj = new Date(evt.fechaInicio + 'T00:00:00');
+                const diasRestantes = Math.ceil((fObj - new Date().setHours(0,0,0,0)) / (1000 * 60 * 60 * 24));
+                const colorSegunCategoria = evt.ambitoId === 'libre' ? '#78716c' : (data.ambitos.find(amb => amb.id === evt.ambitoId)?.color || '#78716c');
+                const esUrgente = diasRestantes >= 0 && diasRestantes <= 5;
+                let textoFecha = fObj.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+                if (evt.fechaFin && evt.fechaFin !== evt.fechaInicio) {
+                    textoFecha += ` al ${new Date(evt.fechaFin + 'T00:00:00').toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}`;
+                }
+                const evtEl = document.createElement('div');
+                evtEl.className = `border-l-4 p-3 rounded-r-xl flex flex-col gap-1 relative group border-y border-r border-stone-200 bg-white shadow-xs mb-1 w-full`;
+                evtEl.style.borderColor = colorSegunCategoria;
+                evtEl.style.backgroundColor = `${colorSegunCategoria}0a`;
+                evtEl.innerHTML = `
+                    <div class="flex justify-between items-start pr-4">
+                        <span class="text-xs font-bold text-stone-700">${textoFecha}</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded ${esUrgente ? 'bg-rose-100 text-rose-700 font-bold animate-pulse' : 'bg-stone-100 text-stone-600'}">
+                            ${diasRestantes < 0 ? 'Pasado' : diasRestantes === 0 ? '¡Hoy!' : `En ${diasRestantes} días`}
+                        </span>
+                    </div>
+                    <p class="text-xs text-stone-800 mt-1 font-semibold leading-relaxed">${evt.texto}</p>
+                    <button onclick="deleteEvent('${evt.id}')" class="absolute right-2 bottom-2 text-stone-400 hover:text-rose-600 text-xs md:opacity-0 md:group-hover:opacity-100 transition-opacity"><i class="fa-solid fa-xmark"></i></button>
+                `;
+                container.appendChild(evtEl);
+            });
+        }
+
+        function actualizarCalendarioGeneral() {
+            const gridDays = document.getElementById('general-calendar-days');
+            if(!gridDays) return;
+            document.getElementById('general-calendar-month').innerText = `${MESES_NOMBRES[mesGen]} ${anioGen}`;
+            gridDays.innerHTML = '';
+            const primerDia = new Date(anioGen, mesGen, 1).getDay();
+            const totalDias = new Date(anioGen, mesGen + 1, 0).getDate();
+            for (let i = 0; i < primerDia; i++) {
+                const empty = document.createElement('div'); empty.className = "bg-stone-50/60 p-1 min-h-[35px]"; gridDays.appendChild(empty);
+            }
+            for (let dia = 1; dia <= totalDias; dia++) {
+                const dayCell = document.createElement('div');
+                dayCell.className = "bg-white p-1 min-h-[40px] border-b border-r border-stone-100 flex flex-col gap-0.5 overflow-hidden text-left relative";
+                dayCell.innerHTML = `<span class="font-bold text-stone-400 text-[9px] block mb-0.5 pl-0.5">${dia}</span>`;
+                const targetStr = `${anioGen}-${String(mesGen + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                const dateTarget = new Date(targetStr + 'T00:00:00');
+                if(data.eventos) {
+                    data.eventos.forEach(evt => {
+                        const inicio = new Date(evt.fechaInicio + 'T00:00:00');
+                        const fin = new Date((evt.fechaFin || evt.fechaInicio) + 'T00:00:00');
+                        if (dateTarget >= inicio && dateTarget <= fin) {
+                            const colorCat = evt.ambitoId === 'libre' ? '#78716c' : (data.ambitos.find(a => a.id === evt.ambitoId)?.color || '#a8a29e');
+                            const dot = document.createElement('div');
+                            dot.className = "text-[8px] px-1 rounded-sm truncate text-stone-900 font-semibold border-l-2 mb-0.5 leading-tight";
+                            dot.style.backgroundColor = `${colorCat}20`; dot.style.borderColor = colorCat; dot.innerText = evt.texto; dayCell.appendChild(dot);
+                        }
+                    });
+                }
+                gridDays.appendChild(dayCell);
+            }
+        }
+
+        // ====================================================================
+        // NAVEGACIÓN Y AMBITO ACTIVO
+        // ====================================================================
+        function navegarAPantallaCategoria(ambitoId) {
+            activeAmbitoId = ambitoId;
+            activeDimension = "operativa";
+
+            document.getElementById('selector-dimensiones').classList.remove('hidden');
+            document.getElementById('selector-dimensiones').classList.add('flex');
+
+            actualizarEstiloHeaderAmbito();
+            cambiarDimensionAmbito("operativa");
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function routerAtras() {
+            document.getElementById('vista-categoria').classList.add('hidden');
+            document.getElementById('vista-estrategica').classList.add('hidden');
+            document.getElementById('selector-dimensiones').classList.add('hidden');
+            document.getElementById('selector-dimensiones').classList.remove('flex');
+
+            document.getElementById('vista-principal').classList.remove('hidden');
+            document.getElementById('vista-principal').classList.add('flex');
+            activeAmbitoId = null;
+
+            document.getElementById('main-header').style.backgroundColor = "#f59e0b";
+            document.getElementById('main-title').innerText = "CENTRO DE MANDO ESTRATÉGICO";
+            document.getElementById('main-title').className = "text-base md:text-xl font-black tracking-wide text-amber-950 uppercase";
+            document.getElementById('btn-back-router').classList.add('hidden');
+            document.getElementById('header-icon-box').className = "p-2 bg-amber-950/10 text-amber-950 rounded-lg border border-amber-950/20";
+            document.getElementById('main-icon').className = "fa-solid fa-layer-group text-xl";
+
+            renderAmbitos();
+            renderTareas();
+            renderEventos();
+            actualizarCalendarioGeneral();
+        }
+
+        function actualizarEstiloHeaderAmbito() {
+            const ambito = data.ambitos.find(a => a.id === activeAmbitoId);
+            if(!ambito) return;
+
+            document.getElementById('vista-principal').classList.add('hidden');
+            document.getElementById('vista-principal').classList.remove('flex');
+            document.getElementById('main-header').style.backgroundColor = ambito.color;
+            document.getElementById('btn-add-event').style.backgroundColor = ambito.color;
+            document.getElementById('btn-modal-save').style.backgroundColor = ambito.color;
+            document.getElementById('main-title').innerText = ambito.nombre;
+            document.getElementById('main-title').className = "text-base md:text-xl font-black tracking-wide text-stone-900 uppercase";
+            document.getElementById('btn-back-router').classList.remove('hidden');
+            document.getElementById('header-icon-box').className = "p-2 bg-white/20 text-stone-900 rounded-lg border border-white/30";
+            if(ambito.icon) document.getElementById('main-icon').className = `fa-solid ${ambito.icon} text-xl`;
+        }
+
+        function cambiarDimensionAmbito(dimension) {
+            activeDimension = dimension;
+            const tabOp = document.getElementById('tab-operativa');
+            const tabEst = document.getElementById('tab-estrategica');
+
+            if(dimension === "operativa") {
+                document.getElementById('vista-estrategica').classList.add('hidden');
+                document.getElementById('vista-categoria').classList.remove('hidden');
+                document.getElementById('vista-categoria').classList.add('flex');
+
+                tabOp.className = "px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all text-stone-900 bg-white/80 shadow-xs";
+                tabEst.className = "px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all text-stone-700 hover:text-stone-900";
+
+                anioCat = anioGen; mesCat = mesGen;
+                document.getElementById('cat-calendar-month-year').innerText = `${MESES_NOMBRES[mesCat]} ${anioCat}`;
+                renderDetailedTasks();
+                renderCalendarioCategoria();
+            } else {
+                document.getElementById('vista-categoria').classList.add('hidden');
+                document.getElementById('vista-categoria').classList.remove('flex');
+                document.getElementById('vista-estrategica').classList.remove('hidden');
+                document.getElementById('vista-estrategica').classList.add('flex');
+
+                tabEst.className = "px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all text-stone-900 bg-white/80 shadow-xs";
+                tabOp.className = "px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all text-stone-700 hover:text-stone-900";
+
+                renderTableroSunTzu();
+            }
+        }
+
+        function renderDetailedTasks() {
+            const container = document.getElementById('detailed-tasks-container');
+            if(!container) return; container.innerHTML = '';
+
+            const ambito = data.ambitos.find(a => a.id === activeAmbitoId);
+            if(!ambito) return;
+            const lineasIds = ambito.lineas.map(l => l.id);
+            const tareasAmbito = data.tareas.filter(t => lineasIds.includes(t.lineaId));
+
+            document.getElementById('cat-task-count').innerText = tareasAmbito.length;
+
+            if(tareasAmbito.length === 0) {
+                container.innerHTML = `<p class="text-xs text-stone-400 text-center py-8">No hay tareas creadas aquí todavía.</p>`;
+                return;
+            }
+
+            tareasAmbito.forEach(tarea => {
+                const lineaObj = ambito.lineas.find(l => l.id === tarea.lineaId);
+                const taskEl = document.createElement('div');
+                taskEl.className = "bg-white border border-stone-200 rounded-xl p-4 flex flex-col gap-3 shadow-sm w-full";
+                taskEl.style.borderLeft = `4px solid ${ambito.color}`;
+
+                let subTagFecha = '';
+                if (tarea.fechaInicio && tarea.fechaInicio.trim() !== "") {
+                    const fi = new Date(tarea.fechaInicio + 'T00:00:00').toLocaleDateString('es-ES', {month: 'short', day: 'numeric'});
+                    const ff = new Date((tarea.fechaFin || tarea.fechaInicio) + 'T00:00:00').toLocaleDateString('es-ES', {month: 'short', day: 'numeric'});
+                    subTagFecha = `<span class="text-[9px] font-bold text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded-md mt-1.5 inline-block"><i class="fa-regular fa-calendar-days mr-1"></i>Vigencia: ${fi} al ${ff}</span>`;
+                }
+
+                taskEl.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start">
+                            <span class="text-xs font-bold px-2 py-0.5 rounded bg-stone-100 text-stone-600 uppercase tracking-wider text-[10px]">${lineaObj ? lineaObj.nombre : 'General'}</span>
+                            <span class="text-[10px] font-bold ${tarea.estado === 'done' ? 'text-emerald-600' : tarea.estado === 'progress' ? 'text-amber-600' : 'text-stone-400'} uppercase">${tarea.estado}</span>
+                        </div>
+                        <p class="text-sm font-bold text-stone-800 mt-1.5 leading-snug">${tarea.texto}</p>
+                        ${subTagFecha}
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[10px] font-bold text-stone-400 uppercase tracking-wide"><i class="fa-regular fa-comment-dots mr-1"></i>Observaciones y Bitácora</label>
+                        <textarea onblur="saveObservacion('${tarea.id}', this.value)" rows="3" placeholder="Anota avances aquí..." class="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-700 focus:outline-none focus:bg-white focus:border-stone-300 resize-none transition-colors">${tarea.observaciones || ""}</textarea>
+                    </div>
+                `;
+                container.appendChild(taskEl);
+            });
+        }
+
+        async function saveObservacion(taskId, valor) {
+            const t = data.tareas.find(tarea => tarea.id === taskId);
+            if(!t) return;
+            const nuevoValor = valor.trim();
+            if(t.observaciones === nuevoValor) return; // no cambió
+            const { error } = await sbClient.from('tareas').update({ observaciones: nuevoValor }).eq('id', taskId);
+            if(error) { alert("Error guardando observación: " + error.message); return; }
+            t.observaciones = nuevoValor;
+        }
+
+        function renderCalendarioCategoria() {
+            const gridDays = document.getElementById('cat-calendar-days');
+            if(!gridDays) return; gridDays.innerHTML = '';
+            const ambito = data.ambitos.find(a => a.id === activeAmbitoId);
+            if(!ambito) return;
+            const primerDiaSemana = new Date(anioCat, mesCat, 1).getDay();
+            const totalDiasMes = new Date(anioCat, mesCat + 1, 0).getDate();
+            const eventosAmbito = (data.eventos || []).filter(e => e.ambitoId === activeAmbitoId);
+
+            for (let i = 0; i < primerDiaSemana; i++) {
+                const emptyCell = document.createElement('div'); emptyCell.className = "bg-stone-50/40 p-1 border-b border-r border-stone-200/60"; gridDays.appendChild(emptyCell);
+            }
+            for (let dia = 1; dia <= totalDiasMes; dia++) {
+                const dayCell = document.createElement('div');
+                dayCell.className = "bg-white p-1.5 border-b border-r border-stone-200/60 flex flex-col gap-1 overflow-hidden day-cell text-left";
+                dayCell.innerHTML = `<span class="text-xs font-bold text-stone-400 mb-0.5">${dia}</span>`;
+                const strFechaTarget = `${anioCat}-${String(mesCat + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                const dateTarget = new Date(strFechaTarget + 'T00:00:00');
+                eventosAmbito.forEach(evt => {
+                    const inicio = new Date(evt.fechaInicio + 'T00:00:00');
+                    const fin = new Date((evt.fechaFin || evt.fechaInicio) + 'T00:00:00');
+                    if (dateTarget >= inicio && dateTarget <= fin) {
+                        const evtBar = document.createElement('div');
+                        evtBar.className = "text-[10px] px-1.5 py-0.5 rounded truncate font-medium border text-stone-900 shadow-2xs";
+                        evtBar.style.backgroundColor = `${ambito.color}25`; evtBar.style.borderColor = `${ambito.color}60`; evtBar.innerText = evt.texto; dayCell.appendChild(evtBar);
+                    }
+                });
+                gridDays.appendChild(dayCell);
+            }
+        }
+
+        // ====================================================================
+        // SUN TZU
+        // ====================================================================
+        async function addFactorEstrategico() {
+            const columnaSelec = document.getElementById('select-st-columna').value;
+            const textInput = document.getElementById('input-st-texto');
+
+            if(!textInput.value.trim() || !activeAmbitoId) return;
+
+            const payload = {
+                ambito_id: activeAmbitoId,
+                columna: columnaSelec,
+                texto: textInput.value.trim(),
+                autor_id: currentUser ? currentUser.id : null
+            };
+            const { data: inserted, error } = await sbClient.from('suntzu').insert(payload).select().single();
+            if(error) { alert("Error guardando factor: " + error.message); return; }
+
+            data.suntzu.push(rowToFactor(inserted));
+            textInput.value = '';
+            renderTableroSunTzu();
+        }
+
+        async function deleteFactorEstrategico(factorId) {
+            const { error } = await sbClient.from('suntzu').delete().eq('id', factorId);
+            if(error) { alert("Error borrando factor: " + error.message); return; }
+            data.suntzu = data.suntzu.filter(f => f.id !== factorId);
+            renderTableroSunTzu();
+        }
+
+        function renderTableroSunTzu() {
+            const columnasIds = ["doctrina", "tiempo", "terreno", "mando", "disciplina"];
+            columnasIds.forEach(col => {
+                const el = document.getElementById(`st-${col}`);
+                if(el) el.innerHTML = '';
+            });
+
+            const factoresDelAmbito = data.suntzu.filter(f => f.ambitoId === activeAmbitoId);
+
+            factoresDelAmbito.forEach(factor => {
+                const targetColumn = document.getElementById(`st-${factor.columna}`);
+                if(!targetColumn) return;
+
+                const card = document.createElement('div');
+                card.className = "bg-white p-3 rounded-lg border border-stone-200 shadow-2xs flex flex-col gap-2 relative group hover:border-stone-400 transition-all";
+                card.innerHTML = `
+                    <p class="text-xs text-stone-800 font-medium leading-relaxed pr-4">${factor.texto}</p>
+                    <div class="flex justify-end items-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        <button onclick="deleteFactorEstrategico('${factor.id}')" class="text-stone-400 hover:text-rose-600 text-[10px] transition-colors">
+                            <i class="fa-regular fa-trash-can"></i> Borrar Factor
+                        </button>
+                    </div>
+                `;
+                targetColumn.appendChild(card);
+            });
+
+            columnasIds.forEach(col => {
+                const el = document.getElementById(`st-${col}`);
+                if(el && el.children.length === 0) {
+                    el.innerHTML = `<p class="text-[11px] text-stone-400 text-center italic py-6 border border-dashed border-stone-200 rounded-lg">Sin vectores.</p>`;
+                }
+            });
+        }
+
+        function openEventModal() { document.getElementById('event-modal').classList.remove('hidden'); }
+        function closeEventModal() { document.getElementById('event-modal').classList.add('hidden'); }
+
+        async function saveModalEvent() {
+            const text = document.getElementById('modal-event-text').value.trim();
+            const start = document.getElementById('modal-event-start').value;
+            let end = document.getElementById('modal-event-end').value;
+            if(!text || !start) return;
+            if(!end) end = start;
+
+            const payload = {
+                ambito_id: activeAmbitoId,
+                texto: text,
+                fecha_inicio: start,
+                fecha_fin: end,
+                autor_id: currentUser ? currentUser.id : null
+            };
+            const { data: inserted, error } = await sbClient.from('eventos').insert(payload).select().single();
+            if(error) { alert("Error guardando hito: " + error.message); return; }
+
+            data.eventos.push(rowToEvento(inserted));
+            document.getElementById('modal-event-text').value = '';
+            document.getElementById('modal-event-start').value = '';
+            document.getElementById('modal-event-end').value = '';
+            closeEventModal(); renderCalendarioCategoria(); actualizarCalendarioGeneral();
+        }
+
+        // ====================================================================
+        // INICIALIZACIÓN
+        // ====================================================================
+        async function mostrarAppLogueado(session) {
+            currentUser = session.user;
+            document.getElementById('user-email-header').innerText = currentUser.email;
+            document.getElementById('user-email-menu').innerText = currentUser.email;
+
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('main-header').classList.remove('hidden');
+            document.getElementById('main-header').classList.add('flex');
+            document.getElementById('vista-principal').classList.remove('hidden');
+            document.getElementById('vista-principal').classList.add('flex');
+
+            const formattedDate = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            if(document.getElementById('current-date')) document.getElementById('current-date').innerText = formattedDate;
+            if(document.getElementById('current-date-mobile')) document.getElementById('current-date-mobile').innerText = new Date().toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+
+            await cargarTodoDesdeDB();
+            renderAmbitos();
+            renderTareas();
+            renderEventos();
+            actualizarCalendarioGeneral();
+
+            setupRealtime();
+        }
+
+        function mostrarLogin() {
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('main-header').classList.add('hidden');
+            document.getElementById('main-header').classList.remove('flex');
+            document.getElementById('vista-principal').classList.add('hidden');
+        }
+
+        // Escuchar cambios de sesión
+        sbClient.auth.onAuthStateChange(async (event, session) => {
+            if(event === 'SIGNED_IN' && session) {
+                await mostrarAppLogueado(session);
+            } else if(event === 'SIGNED_OUT') {
+                mostrarLogin();
+            }
+        });
+
+        // Al cargar la página, chequear si ya hay sesión
+        (async function init() {
+            if(SUPABASE_URL.includes("PEGA_ACA") || SUPABASE_ANON_KEY.includes("PEGA_ACA")) {
+                document.getElementById('login-screen').innerHTML = `
+                    <div class="max-w-md bg-rose-50 border border-rose-200 rounded-xl p-6 text-sm text-rose-800">
+                        <p class="font-bold mb-2"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Configuración pendiente</p>
+                        <p>Editá el archivo <code class="bg-white px-1 rounded">index.html</code> y reemplazá los valores de <code class="bg-white px-1 rounded">SUPABASE_URL</code> y <code class="bg-white px-1 rounded">SUPABASE_ANON_KEY</code> con las credenciales de tu proyecto Supabase.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const { data: { session } } = await sbClient.auth.getSession();
+            if(session) {
+                await mostrarAppLogueado(session);
+            } else {
+                mostrarLogin();
+            }
+        })();
+
+        // Enter en login = submit
+        document.getElementById('login-password').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') handleLogin();
+        });
+        document.getElementById('login-email').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') document.getElementById('login-password').focus();
+        });
+    </script>
+</body>
+</html>
