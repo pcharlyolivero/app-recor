@@ -619,8 +619,6 @@
                 }
                 return false;
             }
-            ocultarBannerSesion();
-            return true;
 
             const lineasPorAmbito = {};
             (lineasRes.data || []).forEach(l => {
@@ -636,6 +634,9 @@
             data.tareas = (tareasRes.data || []).map(rowToTarea);
             data.eventos = (eventosRes.data || []).map(rowToEvento);
             data.suntzu = (suntzuRes.data || []).map(rowToFactor);
+
+            ocultarBannerSesion();
+            return true;
         }
 
         function rowToTarea(row) {
