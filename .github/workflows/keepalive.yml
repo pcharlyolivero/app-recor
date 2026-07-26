@@ -20,6 +20,6 @@ jobs:
           echo "---"
           echo "Response body:"
           curl -sS -w "\n---\nHTTP %{http_code}\n" \
-            "${SUPABASE_URL}/rest/v1/definiciones?select=*&limit=1" \
+            "${SUPABASE_URL}/rest/v1/" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
