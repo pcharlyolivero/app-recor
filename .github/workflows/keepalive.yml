@@ -1,17 +1,14 @@
-name: Supabase Keepalive
-
-on:
-  schedule:
-    - cron: '0 12 */3 * *'   # cada 3 días a las 12:00 UTC
-  workflow_dispatch:          # botón para dispararlo a mano
-
-jobs:
-  ping:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ping Supabase
+- name: Ping Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          curl -sS -o /dev/null -w "HTTP %{http_code}\n" \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/definiciones?select=*&limit=1" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
+          echo "URL length: ${#SUPABASE_URL}"
+          echo "Key length: ${#SUPABASE_ANON_KEY}"
+          echo "URL preview: ${SUPABASE_URL:0:35}..."
+          echo "---"
+          echo "Response body:"
+          curl -sS -w "\n---\nHTTP %{http_code}\n" \
+            "${SUPABASE_URL}/rest/v1/definiciones?select=*&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
