@@ -1,5 +1,5 @@
 // Service Worker mínimo.
-// NO intercepta fetch — así no interfiere con requests a Supabase ni CDNs.
+// NO intercepta fetch — así no interfiere con requests a los CDNs.
 // Su única razón de existir es habilitar el prompt "Instalar app" en Chrome/Android.
 
 const VERSION = 'v2';

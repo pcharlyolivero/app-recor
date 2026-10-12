@@ -13,8 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Mando">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><!-- Cliente Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
             background-color: #fbf9f4;
@@ -86,8 +85,8 @@
             <div class="bg-white rounded-2xl shadow-xl p-6 border border-stone-200">
                 <div class="flex flex-col gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-stone-500 uppercase tracking-wide mb-1">Email</label>
-                        <input type="email" id="login-email" placeholder="tu-email@ejemplo.com" class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+                        <label class="block text-xs font-bold text-stone-500 uppercase tracking-wide mb-1">Usuario</label>
+                        <input type="text" id="login-email" autocapitalize="none" autocomplete="username" placeholder="tu usuario" class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-stone-500 uppercase tracking-wide mb-1">Contraseña</label>
@@ -103,32 +102,6 @@
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- MODAL: CAMBIAR CONTRASEÑA                  -->
-    <!-- ========================================== -->
-    <div id="password-modal" class="hidden fixed inset-0 bg-stone-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-stone-200 flex flex-col gap-4">
-            <h3 class="font-bold text-stone-800 text-base flex items-center gap-2">
-                <i class="fa-solid fa-key text-amber-600"></i> Cambiar contraseña
-            </h3>
-            <div class="flex flex-col gap-3">
-                <div>
-                    <label class="block text-xs font-bold text-stone-500 mb-1">Nueva contraseña (mínimo 6 caracteres)</label>
-                    <input type="password" id="new-password" placeholder="••••••••" class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-stone-500 mb-1">Repetir nueva contraseña</label>
-                    <input type="password" id="new-password-confirm" placeholder="••••••••" class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
-                </div>
-                <div id="password-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2"></div>
-                <div id="password-success" class="hidden text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2"></div>
-            </div>
-            <div class="flex justify-end gap-2 mt-2">
-                <button onclick="closePasswordModal()" class="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-800 font-medium">Cancelar</button>
-                <button onclick="handleChangePassword()" class="px-4 py-1.5 text-xs bg-amber-600 hover:bg-amber-500 text-amber-950 font-bold rounded-lg shadow-sm">Guardar</button>
-            </div>
-        </div>
-    </div>
 
     <!-- CABECERA PRINCIPAL -->
     <header id="main-header" class="hidden h-auto md:h-16 flex-col md:flex-row items-center justify-between p-4 md:px-8 bg-amber-500 z-10 shadow-md gap-3 transition-colors duration-300">
@@ -151,6 +124,10 @@
                 <button onclick="exportarDatos()" class="px-2.5 py-1 text-[11px] font-bold bg-amber-950/20 hover:bg-amber-950/30 text-amber-950 rounded-lg transition-all" title="Bajar respaldo local (JSON)">
                     <i class="fa-solid fa-download mr-1"></i> Backup
                 </button>
+                <button onclick="document.getElementById('input-importar').click()" class="px-2.5 py-1 text-[11px] font-bold bg-amber-950/20 hover:bg-amber-950/30 text-amber-950 rounded-lg transition-all" title="Cargar un respaldo (JSON)">
+                    <i class="fa-solid fa-upload mr-1"></i> Importar
+                </button>
+                <input type="file" id="input-importar" accept=".json,application/json" class="hidden" onchange="importarDatos(this)">
             </div>
 
             <!-- Selector dinámico de dimensión -->
@@ -175,9 +152,6 @@
                         <p class="text-[10px] text-stone-400 uppercase tracking-wide">Sesión</p>
                         <p id="user-email-menu" class="text-xs text-stone-700 truncate font-medium"></p>
                     </div>
-                    <button onclick="openPasswordModal()" class="w-full text-left px-3 py-2 text-xs text-stone-700 hover:bg-stone-100 flex items-center gap-2">
-                        <i class="fa-solid fa-key text-stone-400"></i> Cambiar contraseña
-                    </button>
                     <button onclick="handleLogout()" class="w-full text-left px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar sesión
                     </button>
@@ -491,13 +465,21 @@
 
     <script>
         // ====================================================================
-        // CONFIGURACIÓN — REEMPLAZAR CON TUS CREDENCIALES DE SUPABASE
+        // USUARIOS HABILITADOS
+        // --------------------------------------------------------------------
+        // Para agregar a alguien: abrí la app, apretá F12 → Console y escribí
+        //     generarHash('nombre_de_usuario', 'su_contraseña')
+        // Copiá la línea que devuelve y pegala dentro de esta lista.
+        // Para sacar a alguien, borrá su línea. El usuario no distingue mayúsculas.
+        // OJO: este archivo es público; nunca pongas contraseñas en texto plano acá.
         // ====================================================================
-        const SUPABASE_URL = "https://jmfzbzduzuryqxozlyfa.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptZnpiemR1enVyeXF4b3pseWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NDY4NjEsImV4cCI6MjA5ODUyMjg2MX0.0Gpzejl4UCxeA2mXLHoC52UASCD6hXRdKa44Tc348Dc";
+        const USUARIOS = [
+            // { usuario: "ejemplo", hash: "..." },
+        ];
         // ====================================================================
 
-        const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const STORAGE_DATOS = 'mando_datos';
+        const STORAGE_SESION = 'mando_sesion';
 
         // Estructura en memoria (misma forma que la versión original)
         let data = { ambitos: [], tareas: [], eventos: [], suntzu: [], definiciones: [] };
@@ -505,7 +487,6 @@
         let activeAmbitoId = null;
         let activeDimension = "operativa";
         let currentUser = null;
-        let realtimeChannel = null;
 
         const hoy = new Date();
         let anioGen = hoy.getFullYear();
@@ -515,68 +496,50 @@
         const MESES_NOMBRES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
         // ====================================================================
-        // AUTENTICACIÓN
+        // AUTENTICACIÓN (local, contra la lista USUARIOS)
         // ====================================================================
-        async function handleLogin() {
-            const email = document.getElementById('login-email').value.trim();
-            const password = document.getElementById('login-password').value;
-            const errorEl = document.getElementById('login-error');
-            const btn = document.getElementById('btn-login');
-
-            errorEl.classList.add('hidden');
-            if(!email || !password) {
-                errorEl.innerText = "Ingresá email y contraseña.";
-                errorEl.classList.remove('hidden');
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Ingresando...';
-
-            const { data: authData, error } = await sbClient.auth.signInWithPassword({ email, password });
-
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket mr-2"></i>Ingresar';
-
-            if(error) {
-                errorEl.innerText = "Credenciales incorrectas o usuario inexistente.";
-                errorEl.classList.remove('hidden');
-                return;
-            }
-            // Guardar email para autocompletar la próxima vez
-            try { localStorage.setItem('ultimoEmail', email); } catch(e) {}
-            // El listener de onAuthStateChange se encarga del resto
+        async function hashPassword(usuario, password) {
+            // El usuario funciona como "sal": misma contraseña en dos usuarios → hashes distintos
+            const bytes = new TextEncoder().encode(usuario.toLowerCase() + ':' + password);
+            const digest = await crypto.subtle.digest('SHA-256', bytes);
+            return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        async function handleLogout() {
-            // Preservar email para autocompletar la próxima vez
-            let emailPreservado = null;
-            try { emailPreservado = localStorage.getItem('ultimoEmail'); } catch(e) {}
+        // Uso desde consola: generarHash('juan', 'secreto123')
+        window.generarHash = async function(usuario, password) {
+            const linea = `{ usuario: "${usuario.toLowerCase()}", hash: "${await hashPassword(usuario, password)}" },`;
+            console.log(linea);
+            return linea;
+        };
 
-            // Reset "duro": aunque el SDK esté colgado, garantizamos que la sesión se limpie.
-            // Cada await con race timeout de 2s para no quedarnos esperando eternamente.
-            try {
-                if(realtimeChannel) {
-                    await Promise.race([
-                        sbClient.removeChannel(realtimeChannel),
-                        new Promise(r => setTimeout(r, 2000))
-                    ]);
-                    realtimeChannel = null;
-                }
-            } catch(e) { /* ignoramos */ }
-            try {
-                await Promise.race([
-                    sbClient.auth.signOut(),
-                    new Promise(r => setTimeout(r, 2000))
-                ]);
-            } catch(e) { /* ignoramos */ }
-            // Limpieza forzada del storage local por si el SDK dejó estado corrupto
-            try { localStorage.clear(); } catch(e) {}
-            try { sessionStorage.clear(); } catch(e) {}
-            // Reponer email para próxima vez
-            if(emailPreservado) {
-                try { localStorage.setItem('ultimoEmail', emailPreservado); } catch(e) {}
+        async function handleLogin() {
+            const usuario = document.getElementById('login-email').value.trim().toLowerCase();
+            const password = document.getElementById('login-password').value;
+            const errorEl = document.getElementById('login-error');
+
+            errorEl.classList.add('hidden');
+            if(!usuario || !password) {
+                errorEl.innerText = "Ingresá usuario y contraseña.";
+                errorEl.classList.remove('hidden');
+                return;
             }
+
+            const hash = await hashPassword(usuario, password);
+            const ok = USUARIOS.some(u => u.usuario.toLowerCase() === usuario && u.hash === hash);
+            if(!ok) {
+                errorEl.innerText = "Usuario o contraseña incorrectos.";
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            document.getElementById('login-password').value = '';
+            try { localStorage.setItem('ultimoEmail', usuario); } catch(e) {}
+            try { localStorage.setItem(STORAGE_SESION, usuario); } catch(e) {}
+            await mostrarAppLogueado(usuario);
+        }
+
+        function handleLogout() {
+            // Solo se borra la sesión: los datos guardados en este navegador se conservan
+            try { localStorage.removeItem(STORAGE_SESION); } catch(e) {}
             location.reload();
         }
 
@@ -590,49 +553,6 @@
                 menu.classList.add('hidden');
             }
         });
-
-        function openPasswordModal() {
-            document.getElementById('user-menu').classList.add('hidden');
-            document.getElementById('new-password').value = '';
-            document.getElementById('new-password-confirm').value = '';
-            document.getElementById('password-error').classList.add('hidden');
-            document.getElementById('password-success').classList.add('hidden');
-            document.getElementById('password-modal').classList.remove('hidden');
-        }
-        function closePasswordModal() {
-            document.getElementById('password-modal').classList.add('hidden');
-        }
-
-        async function handleChangePassword() {
-            const p1 = document.getElementById('new-password').value;
-            const p2 = document.getElementById('new-password-confirm').value;
-            const errorEl = document.getElementById('password-error');
-            const okEl = document.getElementById('password-success');
-
-            errorEl.classList.add('hidden');
-            okEl.classList.add('hidden');
-
-            if(p1.length < 6) {
-                errorEl.innerText = "La contraseña debe tener al menos 6 caracteres.";
-                errorEl.classList.remove('hidden');
-                return;
-            }
-            if(p1 !== p2) {
-                errorEl.innerText = "Las contraseñas no coinciden.";
-                errorEl.classList.remove('hidden');
-                return;
-            }
-
-            const { error } = await sbClient.auth.updateUser({ password: p1 });
-            if(error) {
-                errorEl.innerText = "Error: " + error.message;
-                errorEl.classList.remove('hidden');
-                return;
-            }
-            okEl.innerText = "Contraseña actualizada.";
-            okEl.classList.remove('hidden');
-            setTimeout(() => closePasswordModal(), 1500);
-        }
 
         // ====================================================================
         // LOADING OVERLAY
@@ -649,7 +569,7 @@
         // ====================================================================
         // RESET TOTAL (accesible desde consola)
         // Uso: en F12 → Console → escribir  resetTotal()  y Enter.
-        // Limpia todo (storage, service worker) y recarga.
+        // Limpia sesión y service worker y recarga. NO borra los datos guardados.
         // ====================================================================
         window.resetTotal = async function() {
             console.log("Reset total en curso...");
@@ -659,7 +579,7 @@
                     for(const reg of regs) await reg.unregister();
                 }
             } catch(e) { console.warn(e); }
-            try { localStorage.clear(); } catch(e) {}
+            try { localStorage.removeItem(STORAGE_SESION); } catch(e) {}
             try { sessionStorage.clear(); } catch(e) {}
             location.reload();
         };
@@ -677,182 +597,45 @@
             const banner = document.getElementById('session-banner');
             if(banner) banner.classList.add('hidden');
         }
-        async function reintentarCarga() {
-            ocultarBannerSesion();
-            // Verificar que hay sesión antes de reintentar
-            const { data: { session } } = await sbClient.auth.getSession();
-            if(!session) {
-                mostrarBannerSesion("No hay sesión activa. Volvé a entrar.");
-                return;
-            }
-            const ok = await cargarTodoDesdeDB();
-            if(ok) {
-                renderAmbitos();
-                renderTareas();
-                renderEventos();
-                actualizarCalendarioGeneral();
-            }
+        function reintentarCarga() {
+            location.reload();
         }
 
         // ====================================================================
-        // CARGA INICIAL DE DATOS
+        // DATOS — se guardan en este navegador (localStorage)
         // ====================================================================
-        async function cargarTodoDesdeDB() {
-            mostrarLoading();
-            console.log("Cargando datos desde Supabase...");
-            // Queries en paralelo con timeout de 10s. Si el cliente Supabase se cuelga
-            // (promesas que no resuelven), el timeout dispara el banner de reintentar.
-            const queriesPromise = Promise.all([
-                sbClient.from('ambitos').select('*').order('orden'),
-                sbClient.from('lineas').select('*').order('orden'),
-                sbClient.from('tareas').select('*'),
-                sbClient.from('eventos').select('*'),
-                sbClient.from('suntzu').select('*'),
-                sbClient.from('definiciones').select('*').order('orden')
-            ]);
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT')), 10000)
-            );
-
-            let ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes, definicionesRes;
+        function cargarDatosLocales() {
             try {
-                [ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes, definicionesRes] =
-                    await Promise.race([queriesPromise, timeoutPromise]);
+                const guardado = localStorage.getItem(STORAGE_DATOS);
+                if(guardado) data = normalizarDatos(JSON.parse(guardado));
             } catch(e) {
-                console.error("Timeout cargando datos:", e);
-                ocultarLoading();
-                mostrarBannerSesion("La app no puede conectarse. Tocá 'Volver a entrar' para reiniciar.");
-                return false;
+                console.error("Error leyendo datos guardados:", e);
+                mostrarBannerSesion("No se pudieron leer los datos guardados. Podés cargar un backup con 'Importar'.");
             }
+        }
 
-            if(ambitosRes.error || lineasRes.error || tareasRes.error || eventosRes.error || suntzuRes.error || definicionesRes.error) {
-                console.error("Error cargando datos", { ambitosRes, lineasRes, tareasRes, eventosRes, suntzuRes, definicionesRes });
-                ocultarLoading();
-                // Detectar si es error de sesión/permiso vs otro tipo
-                const errores = [ambitosRes.error, lineasRes.error, tareasRes.error, eventosRes.error, suntzuRes.error, definicionesRes.error].filter(Boolean);
-                const esErrorAuth = errores.some(e => e && (e.code === '42501' || e.code === 'PGRST301' || (e.message || '').includes('JWT')));
-                if(esErrorAuth) {
-                    mostrarBannerSesion("Tu sesión expiró o no tenés permisos. Volvé a entrar.");
-                } else {
-                    mostrarBannerSesion("Hubo un problema cargando los datos. Podés reintentar o volver a entrar.");
-                }
-                return false;
+        function guardarDatos() {
+            try {
+                localStorage.setItem(STORAGE_DATOS, JSON.stringify(data));
+            } catch(e) {
+                console.error("Error guardando datos:", e);
+                alert("No se pudieron guardar los cambios en este navegador: " + e.message);
             }
-
-            const lineasPorAmbito = {};
-            (lineasRes.data || []).forEach(l => {
-                if(!lineasPorAmbito[l.ambito_id]) lineasPorAmbito[l.ambito_id] = [];
-                lineasPorAmbito[l.ambito_id].push({ id: l.id, nombre: l.nombre });
-            });
-
-            data.ambitos = (ambitosRes.data || []).map(a => ({
-                id: a.id, nombre: a.nombre, color: a.color, icon: a.icon,
-                lineas: lineasPorAmbito[a.id] || []
-            }));
-
-            data.tareas = (tareasRes.data || []).map(rowToTarea);
-            data.eventos = (eventosRes.data || []).map(rowToEvento);
-            data.suntzu = (suntzuRes.data || []).map(rowToFactor);
-            data.definiciones = (definicionesRes.data || []).map(rowToDefinicion);
-
-            console.log("Datos cargados OK:", data.ambitos.length, "ámbitos,", data.tareas.length, "tareas");
-            ocultarLoading();
-            ocultarBannerSesion();
-            return true;
         }
 
-        function rowToTarea(row) {
+        function normalizarDatos(obj) {
             return {
-                id: row.id,
-                lineaId: row.linea_id,
-                texto: row.texto,
-                estado: row.estado,
-                observaciones: row.observaciones || "",
-                fechaInicio: row.fecha_inicio || undefined,
-                fechaFin: row.fecha_fin || undefined
-            };
-        }
-        function rowToEvento(row) {
-            return {
-                id: row.id,
-                ambitoId: row.ambito_id || "libre",
-                texto: row.texto,
-                fechaInicio: row.fecha_inicio,
-                fechaFin: row.fecha_fin
-            };
-        }
-        function rowToFactor(row) {
-            return {
-                id: row.id,
-                ambitoId: row.ambito_id,
-                columna: row.columna,
-                texto: row.texto
-            };
-        }
-        function rowToDefinicion(row) {
-            return {
-                id: row.id,
-                ambitoId: row.ambito_id,
-                titulo: row.titulo,
-                contenido: row.contenido || '',
-                orden: row.orden || 0
+                ambitos: (obj.ambitos || []).map(a => ({ ...a, lineas: a.lineas || [] })),
+                tareas: obj.tareas || [],
+                eventos: obj.eventos || [],
+                suntzu: obj.suntzu || [],
+                definiciones: obj.definiciones || []
             };
         }
 
-        // ====================================================================
-        // REALTIME — escucha cambios de otros usuarios
-        // ====================================================================
-        function setupRealtime() {
-            realtimeChannel = sbClient.channel('centro-mando')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'tareas' }, async (payload) => {
-                    if(payload.eventType === 'INSERT') {
-                        if(!data.tareas.some(t => t.id === payload.new.id)) data.tareas.push(rowToTarea(payload.new));
-                    } else if(payload.eventType === 'UPDATE') {
-                        const idx = data.tareas.findIndex(t => t.id === payload.new.id);
-                        if(idx !== -1) data.tareas[idx] = rowToTarea(payload.new);
-                    } else if(payload.eventType === 'DELETE') {
-                        data.tareas = data.tareas.filter(t => t.id !== payload.old.id);
-                    }
-                    renderTareas();
-                    actualizarCalendarioGeneral();
-                    if(activeAmbitoId && activeDimension === 'operativa') { renderDetailedTasks(); renderCalendarioCategoria(); }
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos' }, async (payload) => {
-                    if(payload.eventType === 'INSERT') {
-                        if(!data.eventos.some(e => e.id === payload.new.id)) data.eventos.push(rowToEvento(payload.new));
-                    } else if(payload.eventType === 'UPDATE') {
-                        const idx = data.eventos.findIndex(e => e.id === payload.new.id);
-                        if(idx !== -1) data.eventos[idx] = rowToEvento(payload.new);
-                    } else if(payload.eventType === 'DELETE') {
-                        data.eventos = data.eventos.filter(e => e.id !== payload.old.id);
-                    }
-                    renderEventos();
-                    actualizarCalendarioGeneral();
-                    if(activeAmbitoId) renderCalendarioCategoria();
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'suntzu' }, async (payload) => {
-                    if(payload.eventType === 'INSERT') {
-                        if(!data.suntzu.some(s => s.id === payload.new.id)) data.suntzu.push(rowToFactor(payload.new));
-                    } else if(payload.eventType === 'UPDATE') {
-                        const idx = data.suntzu.findIndex(s => s.id === payload.new.id);
-                        if(idx !== -1) data.suntzu[idx] = rowToFactor(payload.new);
-                    } else if(payload.eventType === 'DELETE') {
-                        data.suntzu = data.suntzu.filter(s => s.id !== payload.old.id);
-                    }
-                    if(activeDimension === 'estrategica') renderTableroSunTzu();
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'definiciones' }, async (payload) => {
-                    if(payload.eventType === 'INSERT') {
-                        if(!data.definiciones.some(d => d.id === payload.new.id)) data.definiciones.push(rowToDefinicion(payload.new));
-                    } else if(payload.eventType === 'UPDATE') {
-                        const idx = data.definiciones.findIndex(d => d.id === payload.new.id);
-                        if(idx !== -1) data.definiciones[idx] = rowToDefinicion(payload.new);
-                    } else if(payload.eventType === 'DELETE') {
-                        data.definiciones = data.definiciones.filter(d => d.id !== payload.old.id);
-                    }
-                    if(activeDimension === 'estrategica') renderDefiniciones();
-                })
-                .subscribe();
+        function nuevoId() {
+            if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+            return Date.now().toString(36) + Math.random().toString(36).slice(2);
         }
 
         // ====================================================================
@@ -867,6 +650,23 @@
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();
             downloadAnchor.remove();
+        }
+
+        function importarDatos(input) {
+            const archivo = input.files && input.files[0];
+            input.value = '';
+            if(!archivo) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                let obj;
+                try { obj = JSON.parse(reader.result); } catch(e) { alert("El archivo no es un backup válido."); return; }
+                if(!obj || !Array.isArray(obj.ambitos)) { alert("El archivo no es un backup válido."); return; }
+                if(!confirm("Esto reemplaza TODOS los datos de este navegador por los del backup. ¿Continuar?")) return;
+                data = normalizarDatos(obj);
+                guardarDatos();
+                location.reload();
+            };
+            reader.readAsText(archivo);
         }
 
         function cambiarMesGeneral(dir) {
@@ -982,22 +782,20 @@
 
             if(!textInput.value.trim() || !activeLineaId) return;
 
-            const payload = {
-                linea_id: activeLineaId,
+            const tarea = {
+                id: nuevoId(),
+                lineaId: activeLineaId,
                 texto: textInput.value.trim(),
                 estado: "todo",
-                observaciones: "",
-                autor_id: currentUser ? currentUser.id : null
+                observaciones: ""
             };
             if(dateInicio && dateInicio.value) {
-                payload.fecha_inicio = dateInicio.value;
-                payload.fecha_fin = dateFin.value ? dateFin.value : dateInicio.value;
+                tarea.fechaInicio = dateInicio.value;
+                tarea.fechaFin = dateFin.value ? dateFin.value : dateInicio.value;
             }
 
-            const { data: inserted, error } = await sbClient.from('tareas').insert(payload).select().single();
-            if(error) { alert("Error creando tarea: " + error.message); return; }
-
-            data.tareas.push(rowToTarea(inserted));
+            data.tareas.push(tarea);
+            guardarDatos();
 
             textInput.value = '';
             if(dateInicio) dateInicio.value = '';
@@ -1012,16 +810,14 @@
         async function moveTask(taskId, nuevoEstado) {
             const task = data.tareas.find(t => t.id === taskId);
             if(!task) return;
-            const { error } = await sbClient.from('tareas').update({ estado: nuevoEstado }).eq('id', taskId);
-            if(error) { alert("Error moviendo tarea: " + error.message); return; }
             task.estado = nuevoEstado;
+            guardarDatos();
             renderTareas();
         }
 
         async function deleteTask(taskId) {
-            const { error } = await sbClient.from('tareas').delete().eq('id', taskId);
-            if(error) { alert("Error borrando tarea: " + error.message); return; }
             data.tareas = data.tareas.filter(t => t.id !== taskId);
+            guardarDatos();
             renderTareas();
             actualizarCalendarioGeneral();
             if(activeAmbitoId && activeDimension === 'operativa') { renderDetailedTasks(); renderCalendarioCategoria(); }
@@ -1099,25 +895,21 @@
 
             if (!txtInput.value.trim() || !dateInicio.value) return;
 
-            const payload = {
-                ambito_id: null,  // NULL = hito libre
+            data.eventos.push({
+                id: nuevoId(),
+                ambitoId: "libre",  // "libre" = hito sin ámbito
                 texto: txtInput.value.trim(),
-                fecha_inicio: dateInicio.value,
-                fecha_fin: dateFin.value ? dateFin.value : dateInicio.value,
-                autor_id: currentUser ? currentUser.id : null
-            };
-            const { data: inserted, error } = await sbClient.from('eventos').insert(payload).select().single();
-            if(error) { alert("Error guardando hito: " + error.message); return; }
-
-            data.eventos.push(rowToEvento(inserted));
+                fechaInicio: dateInicio.value,
+                fechaFin: dateFin.value ? dateFin.value : dateInicio.value
+            });
+            guardarDatos();
             txtInput.value = ''; dateInicio.value = ''; dateFin.value = '';
             renderEventos(); actualizarCalendarioGeneral();
         }
 
         async function deleteEvent(id) {
-            const { error } = await sbClient.from('eventos').delete().eq('id', id);
-            if(error) { alert("Error borrando hito: " + error.message); return; }
             data.eventos = data.eventos.filter(e => e.id !== id);
+            guardarDatos();
             renderEventos(); actualizarCalendarioGeneral();
             if(activeAmbitoId) renderCalendarioCategoria();
         }
@@ -1410,9 +1202,8 @@
             if(!t) return;
             const nuevoValor = valor.trim();
             if(t.observaciones === nuevoValor) return; // no cambió
-            const { error } = await sbClient.from('tareas').update({ observaciones: nuevoValor }).eq('id', taskId);
-            if(error) { alert("Error guardando observación: " + error.message); return; }
             t.observaciones = nuevoValor;
+            guardarDatos();
         }
 
         function renderCalendarioCategoria() {
@@ -1471,24 +1262,20 @@
 
             if(!textInput.value.trim() || !activeAmbitoId) return;
 
-            const payload = {
-                ambito_id: activeAmbitoId,
+            data.suntzu.push({
+                id: nuevoId(),
+                ambitoId: activeAmbitoId,
                 columna: columnaSelec,
-                texto: textInput.value.trim(),
-                autor_id: currentUser ? currentUser.id : null
-            };
-            const { data: inserted, error } = await sbClient.from('suntzu').insert(payload).select().single();
-            if(error) { alert("Error guardando factor: " + error.message); return; }
-
-            data.suntzu.push(rowToFactor(inserted));
+                texto: textInput.value.trim()
+            });
+            guardarDatos();
             textInput.value = '';
             renderTableroSunTzu();
         }
 
         async function deleteFactorEstrategico(factorId) {
-            const { error } = await sbClient.from('suntzu').delete().eq('id', factorId);
-            if(error) { alert("Error borrando factor: " + error.message); return; }
             data.suntzu = data.suntzu.filter(f => f.id !== factorId);
+            guardarDatos();
             renderTableroSunTzu();
         }
 
@@ -1564,31 +1351,21 @@
             if(!titulo || !activeAmbitoId) return;
 
             if(editandoDefinicionId) {
-                const { error } = await sbClient.from('definiciones')
-                    .update({ titulo, contenido }).eq('id', editandoDefinicionId);
-                if(error) { alert("Error actualizando: " + error.message); return; }
                 const d = data.definiciones.find(x => x.id === editandoDefinicionId);
                 if(d) { d.titulo = titulo; d.contenido = contenido; }
             } else {
                 const orden = (data.definiciones.filter(d => d.ambitoId === activeAmbitoId).length) + 1;
-                const payload = {
-                    ambito_id: activeAmbitoId,
-                    titulo, contenido, orden,
-                    autor_id: currentUser ? currentUser.id : null
-                };
-                const { data: inserted, error } = await sbClient.from('definiciones').insert(payload).select().single();
-                if(error) { alert("Error guardando: " + error.message); return; }
-                data.definiciones.push(rowToDefinicion(inserted));
+                data.definiciones.push({ id: nuevoId(), ambitoId: activeAmbitoId, titulo, contenido, orden });
             }
+            guardarDatos();
             cerrarModalDefinicion();
             renderDefiniciones();
         }
 
         async function deleteDefinicion(defId) {
             if(!confirm('¿Borrar esta definición? No se puede deshacer.')) return;
-            const { error } = await sbClient.from('definiciones').delete().eq('id', defId);
-            if(error) { alert("Error borrando: " + error.message); return; }
             data.definiciones = data.definiciones.filter(d => d.id !== defId);
+            guardarDatos();
             renderDefiniciones();
         }
 
@@ -1640,17 +1417,8 @@
             if(!text || !start) return;
             if(!end) end = start;
 
-            const payload = {
-                ambito_id: activeAmbitoId,
-                texto: text,
-                fecha_inicio: start,
-                fecha_fin: end,
-                autor_id: currentUser ? currentUser.id : null
-            };
-            const { data: inserted, error } = await sbClient.from('eventos').insert(payload).select().single();
-            if(error) { alert("Error guardando hito: " + error.message); return; }
-
-            data.eventos.push(rowToEvento(inserted));
+            data.eventos.push({ id: nuevoId(), ambitoId: activeAmbitoId, texto: text, fechaInicio: start, fechaFin: end });
+            guardarDatos();
             document.getElementById('modal-event-text').value = '';
             document.getElementById('modal-event-start').value = '';
             document.getElementById('modal-event-end').value = '';
@@ -1660,10 +1428,10 @@
         // ====================================================================
         // INICIALIZACIÓN
         // ====================================================================
-        async function mostrarAppLogueado(session) {
-            currentUser = session.user;
-            document.getElementById('user-email-header').innerText = currentUser.email;
-            document.getElementById('user-email-menu').innerText = currentUser.email;
+        async function mostrarAppLogueado(usuario) {
+            currentUser = usuario;
+            document.getElementById('user-email-header').innerText = currentUser;
+            document.getElementById('user-email-menu').innerText = currentUser;
 
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('main-header').classList.remove('hidden');
@@ -1675,13 +1443,14 @@
             if(document.getElementById('current-date')) document.getElementById('current-date').innerText = formattedDate;
             if(document.getElementById('current-date-mobile')) document.getElementById('current-date-mobile').innerText = new Date().toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
 
-            await cargarTodoDesdeDB();
+            cargarDatosLocales();
             renderAmbitos();
             renderTareas();
             renderEventos();
             actualizarCalendarioGeneral();
-
-            setupRealtime();
+            if(data.ambitos.length === 0) {
+                mostrarBannerSesion("Todavía no hay datos en este navegador. Usá 'Importar' para cargar un backup.");
+            }
         }
 
         function mostrarLogin() {
@@ -1703,24 +1472,6 @@
             }
         }
 
-        // Escuchar cambios de sesión
-        sbClient.auth.onAuthStateChange(async (event, session) => {
-            console.log("Auth event:", event);
-            if(event === 'SIGNED_IN' && session) {
-                await mostrarAppLogueado(session);
-            } else if(event === 'SIGNED_OUT') {
-                ocultarBannerSesion();
-                mostrarLogin();
-            } else if(event === 'TOKEN_REFRESHED' && session) {
-                // El SDK refrescó el token silenciosamente. Actualizamos el usuario
-                // por si cambió algo, y si estábamos con el banner mostrado, ocultamos.
-                currentUser = session.user;
-                ocultarBannerSesion();
-            } else if(event === 'USER_UPDATED' && session) {
-                currentUser = session.user;
-            }
-        });
-
         // Registrar service worker para habilitar instalación como PWA
         if('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -1730,38 +1481,14 @@
             });
         }
 
-        // Al cargar la página, chequear si ya hay sesión
+        // Al cargar la página, chequear si ya hay sesión de un usuario habilitado
         (async function init() {
-            if(SUPABASE_URL.includes("PEGA_ACA") || SUPABASE_ANON_KEY.includes("PEGA_ACA")) {
-                document.getElementById('login-screen').innerHTML = `
-                    <div class="max-w-md bg-rose-50 border border-rose-200 rounded-xl p-6 text-sm text-rose-800">
-                        <p class="font-bold mb-2"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Configuración pendiente</p>
-                        <p>Editá el archivo <code class="bg-white px-1 rounded">index.html</code> y reemplazá los valores de <code class="bg-white px-1 rounded">SUPABASE_URL</code> y <code class="bg-white px-1 rounded">SUPABASE_ANON_KEY</code> con las credenciales de tu proyecto Supabase.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            // getSession con timeout: si no responde en 15s, storage local corrupto → limpiar y forzar login
-            let session = null;
-            try {
-                mostrarLoading();
-                const result = await Promise.race([
-                    sbClient.auth.getSession(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('SESSION_TIMEOUT')), 15000))
-                ]);
-                session = result && result.data ? result.data.session : null;
-            } catch(e) {
-                console.warn("getSession no respondió en 15s, limpiando storage:", e);
-                try { localStorage.clear(); } catch(_) {}
-                try { sessionStorage.clear(); } catch(_) {}
-                session = null;
-            }
-
-            if(session) {
-                await mostrarAppLogueado(session);
+            let usuario = null;
+            try { usuario = localStorage.getItem(STORAGE_SESION); } catch(e) {}
+            if(usuario && USUARIOS.some(u => u.usuario.toLowerCase() === usuario)) {
+                await mostrarAppLogueado(usuario);
             } else {
-                ocultarLoading();
+                try { localStorage.removeItem(STORAGE_SESION); } catch(e) {}
                 mostrarLogin();
             }
         })();
