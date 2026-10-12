@@ -86,7 +86,7 @@
                 <div class="flex flex-col gap-4">
                     <div>
                         <label class="block text-xs font-bold text-stone-500 uppercase tracking-wide mb-1">Usuario</label>
-                        <input type="text" id="login-email" autocapitalize="none" autocomplete="username" placeholder="tu usuario" class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+                        <input type="text" id="login-email" autocapitalize="none" autocomplete="username" placeholder="tu-email@ejemplo.com" class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-stone-500 uppercase tracking-wide mb-1">Contraseña</label>
@@ -474,7 +474,9 @@
         // OJO: este archivo es público; nunca pongas contraseñas en texto plano acá.
         // ====================================================================
         const USUARIOS = [
-            // { usuario: "ejemplo", hash: "..." },
+            { usuario: "info@ulpe.org.ar", hash: "0338fdaf414ee2c936177ba13879c217a15632a8d5572024d9f606ccca358810" },
+            { usuario: "maxfehrmann@ulpe.org.ar", hash: "89c2693882cfb35daf07f926568356db86ff2b6839b9d95eda902b9ce531823c" },
+            { usuario: "pcharly@hogardecristo.org.ar", hash: "e10e1b6dfc295c625f169b1ec0aff0dd635d9d8899f5e32c15507250f4aff2bc" },
         ];
         // ====================================================================
 
@@ -498,11 +500,17 @@
         // ====================================================================
         // AUTENTICACIÓN (local, contra la lista USUARIOS)
         // ====================================================================
+        // PBKDF2 con muchas iteraciones: entrar tarda una fracción de segundo,
+        // pero adivinar contraseñas probando combinaciones se vuelve muy lento.
+        // El usuario funciona como "sal": misma contraseña en dos usuarios → hashes distintos.
         async function hashPassword(usuario, password) {
-            // El usuario funciona como "sal": misma contraseña en dos usuarios → hashes distintos
-            const bytes = new TextEncoder().encode(usuario.toLowerCase() + ':' + password);
-            const digest = await crypto.subtle.digest('SHA-256', bytes);
-            return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+            const enc = new TextEncoder();
+            const clave = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+            const bits = await crypto.subtle.deriveBits(
+                { name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode('mando:' + usuario.toLowerCase()), iterations: 600000 },
+                clave, 256
+            );
+            return Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
         // Uso desde consola: generarHash('juan', 'secreto123')
